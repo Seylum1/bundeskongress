@@ -127,6 +127,44 @@ const GRANDFATHERED_BILLS=[
   {title:"Substantive Titles Act 2022",category:"nobility",type:"regular",status:"grandfathered"},
 ];
 
+const GF_LINKS={
+  "Open Carry Act 2022":"https://docs.google.com/document/d/1P7jvTPAz4Fqj7I98fYszbZS-fYcU3ISYX-T8wnZ08lI/",
+  "Ship Cannon Act of 2021":"https://docs.google.com/document/d/1K3V1yRFl5pcEutnrZbYAbweLzpsl0aWOwNPptRNxpno/",
+  "Arson Illegalization Act 2021":"https://docs.google.com/document/d/1zX7pNxMY0gBLHyrlRhhA6XfMEmY7KMYPbMwycGje85Y/",
+  "Lech Criminal Code Act 2020":"https://docs.google.com/document/d/1LpTaz9nInYWZv_bcmy0RYxEuZDxhVg64Fn7pTkClXQQ/",
+  "Lech Criminal Code (...) Act 2020":"https://docs.google.com/document/d/1LpTaz9nInYWZv_bcmy0RYxEuZDxhVg64Fn7pTkClXQQ/",
+  "Crimes Act 2023":"https://docs.google.com/document/d/1LoMzXTK82k7CYSUI8hUXEEhFTm3k9u83nxS2mimWWeo/",
+  "Sedition Act 2025":"https://docs.google.com/document/d/1CTxMkNe8CVyevFQxi84CucW9y4pnJokaHfDLVZCtx0w/",
+  "Eminent Domain Act 2022":"https://docs.google.com/document/d/1uFM-VmADwQrNnRHey5ItiSwiQCZEbVl-n52DqVwmZtw/",
+  "Partnership Act 2023":"https://docs.google.com/document/d/1jUvBasvNY4JsUwPNQkiNqZKF2TJvLSGOsdrZFfcNiW4/",
+  "Market Dominance Protection Act 2025":"https://docs.google.com/document/d/1pM7-wik_ATxRuRvDBzhTLEkPSW9bXhLP1aD5ySupXmE/",
+  "Business Act 2025":"https://docs.google.com/document/d/1uEnO90OcbdUNkACbsMVXidT_12vdX7UPZQTTVBdqyf8/",
+  "Stand Your Ground Law 2022":"https://docs.google.com/document/d/1hzr1OGk2i0LkqAyg9KHlZkmAVcZiiWWmiDLgI8BYd-M/",
+  "Search and Seizure Act 2022":"https://docs.google.com/document/d/1p012g4ogUjVPz0peEq7tLq5hqwk6pIXtFQsHQpv3Jtw/",
+  "Anti-Corruption Act 2022":"https://docs.google.com/document/d/1uASGvk1RBM9qQnP9V_ZhlIyJGN-_4XYELQWgBsqzHTo/",
+  "Lech Aviation Laws Act 2019":"https://docs.google.com/document/d/1CmEjjcvOvfVo2FunDDmlaipB82ll7y9mAoKvbMrQoH4/",
+  "Visa Borders Act 2023":"https://docs.google.com/document/d/1HiKpsR2VL18o7UyEsU7GAUYaQ5I_v2CE4kLajdDD9Zc/",
+  "July 2022 Budget":"https://docs.google.com/document/d/1kfHvNeVI7g6JxCiYxQynvsT58pjbltH7zX885l24wJc/",
+  "Taxation Act April 2020":"https://docs.google.com/document/d/1TVKNtiYLIP3NvO_q5t0cF8KgoIfmj541HKzZV0N35iA/",
+  "Lech Military Additions Act 2020":"https://docs.google.com/document/d/17LV3--aoNxAVC_mk_wp4fgiPt1uMsX_q7otVPFeG-Ys/",
+  "Lech Military Additions (...) Act 2020":"https://docs.google.com/document/d/17LV3--aoNxAVC_mk_wp4fgiPt1uMsX_q7otVPFeG-Ys/",
+  "Lech OH&S / Border Security Act 2019":"https://docs.google.com/document/d/1DJF1KRp0Etpm_6mWbtWTVUYQHd38eX7iXqVuaI_WqaE/",
+  "Economic Planning Act 2023":"https://docs.google.com/document/d/1f850K5f4QR_NTbpwXcjG_yg3CoMUtM5KJosHk3_rJIk/",
+  "Public Services Act 2023":"https://docs.google.com/document/d/1AuDe4vfUS8ngUad-ARPRZfj_dUhKgUD7U6fSPw0UxLQ/",
+  "Bundestag Procedure Act 2023":"https://docs.google.com/document/d/16JBQ-POvgpo3S7h9ZhAJMCz0KiyiLOOZ-J5MCJWUHjI/",
+  "Legislation Standardization & Formatting Act 2025":"https://docs.google.com/document/d/1gYSncfOXkD9Rs8_1OEaPVHxeYfdw_DTt7pCj-FA9ybI/",
+  "Legislation Standarization & Formatting Act 2025":"https://docs.google.com/document/d/1gYSncfOXkD9Rs8_1OEaPVHxeYfdw_DTt7pCj-FA9ybI/",
+  "First Constitution of The Empire":"https://docs.google.com/document/d/1IR_CeSaAz5gJo58fTlNca3rbGSajk8CG1T59hPvht70/",
+  "1st Amendment":"https://docs.google.com/document/d/1opGcsVdQz-eeGBvaTQGjxz0TpMHMqW4fpHmjzv7nvVQ/",
+  "2nd Amendment":"https://docs.google.com/document/d/1AwITbCrBnvxYtjzJGD-Mrkf8hCj-S1TCRArBhkEQWlg/",
+  "3rd Amendment":"https://docs.google.com/document/d/1BM_6Ao88fAesauasRTz6XQs5-5i5K5glXsbG_eEFRhw/",
+  "4th Amendment":"https://docs.google.com/document/d/1-Pqxeb3KiLaiuF7IQSXZ27PNbFK6qA-voKqCZVpa920/",
+  "5th Amendment":"https://docs.google.com/document/d/1Gk5X83dvkkbtD3aZoSkWZJaw1mHQ0o3fOe0ay5fndMc/",
+  "6th Amendment":"https://docs.google.com/document/d/1nqvhrpR_79uOJFsxUKLVk3LVEPRxYNCpHeJcEQoh6kM/",
+  "7th Amendment":"https://docs.google.com/document/d/15yVSX_myhZFOix3Idoxi2NbPb5GFDUWd/edit?usp=sharing",
+  "Substantive Titles Act 2022":"https://docs.google.com/document/d/1hSYP1q-NxH2DnE-W8m-NiSVew-rEIvNCjz63LzwjXPs/",
+};
+
 const BILL_TYPES = {
   regular:            { label:"Regular Bill",                    icon:"📜", skipBH:false },
   appoint_bt_pres:    { label:"Nominate President of Bundestag", icon:"🏛",  skipBH:true  },
@@ -2348,6 +2386,16 @@ function GrandfatherSection({bills,onAction,notify,setProcessing}) {
                 else notify("⚜ "+res+" missing bill"+(res!==1?"s":"")+" imported.",C.gold);
               }}/>
           )}
+          <div style={{marginTop:"0.75rem"}}>
+            <ArmBtn label="🔗 Correct Database — Apply Doc Links" confirmLabel="Apply all document links?" variant="gold"
+              onConfirm={async()=>{
+                setProcessing("Applying document links…");
+                const res=await onAction("correctDatabase",{});
+                setProcessing(null);
+                if(res===0) notify("All links already up to date.",C.gold);
+                else notify("🔗 "+res+" bill"+(res!==1?"s":"")+" updated with document links.",C.gold);
+              }}/>
+          </div>
         </div>
       ):done?(
         <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a"}}>
@@ -4366,6 +4414,20 @@ function App() {
       setBills(p=>({...p,[payload.billId]:next}));
       await sset("bk_bill_"+payload.billId,next);
       notify("Bill pulled from floor.",C.gold);
+    }
+    else if(type==="correctDatabase"){
+      const gfBills=Object.values(bills||{}).filter(b=>b.grandfathered&&b.status);
+      if(gfBills.length===0) return 0;
+      const updates=gfBills.filter(b=>GF_LINKS[b.title]&&b.gdoc_url!==GF_LINKS[b.title]);
+      if(updates.length===0) return 0;
+      const next={...bills};
+      updates.forEach(b=>{ next[b.id]={...b,gdoc_url:GF_LINKS[b.title]}; });
+      setBills(next);
+      for(let i=0;i<updates.length;i+=5){
+        const batch=updates.slice(i,i+5);
+        await Promise.all(batch.map(b=>sset("bk_bill_"+b.id,next[b.id])));
+      }
+      return updates.length;
     }
     else if(type==="reimportMissingGrandfathered"){
       const existingTitles=new Set(Object.values(bills||{}).filter(b=>b.grandfathered).map(b=>b.title));
