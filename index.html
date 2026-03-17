@@ -19,7 +19,7 @@ const COA_B64 = document.getElementById("coa-data").textContent.trim();
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz37c5Okp9c7PkXv38x2lq7Is3RifkJPee5ASb2KQfA7EJgsN0NwrigmiRr1a_G0E6d4Q/exec";
 
 const PARTIES = [
-  { id:"catholic",    name:"Catholic Party",      color:"#C9A84C" },
+  { id:"catholic",    name:"Lech Catholic Social Union", color:"#C9A84C" },
   { id:"lech_first",  name:"Lech First Party",    color:"#8B0000" },
   { id:"sup",         name:"Social Unity Party",  color:"#C05050" },
   { id:"rappier",     name:"Rappier of Order",    color:"#4A5A8A" },
@@ -2363,7 +2363,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
             One row per line: <code style={{color:C.gold,fontSize:13}}>Name, Party, Seats</code><br/>
             Seats must sum to exactly 1,000. This replaces all current data.
           </div>
-          <TA value={csv} onChange={v=>{setCsv(v);setCsvErr("");}} placeholder={"Lagounov, Lech First Party, 240\nPeter, Catholic Party, 180\n..."} rows={8}/>
+          <TA value={csv} onChange={v=>{setCsv(v);setCsvErr("");}} placeholder={"Lagounov, Lech First Party, 240\nPeter, Lech Catholic Social Union, 180\n..."} rows={8}/>
           {csvErr&&<div style={{background:"#1a0808",border:`1px solid ${C.redL}44`,borderLeft:`3px solid ${C.redL}`,padding:"0.6rem 1rem",borderRadius:"0 3px 3px 0",fontSize:13,color:C.redL,margin:"0.5rem 0"}}>⚠ {csvErr}</div>}
           <div style={{marginTop:"0.75rem"}}><Btn onClick={handleImport} disabled={!csv.trim()}>📥 Import Members</Btn></div>
           <Divider/>
@@ -4074,7 +4074,17 @@ function App() {
 
   useEffect(()=>{
     (async()=>{
-      const [m,bh,off,billsRaw,oc,logoRaw,sess,ann,ab,bc,sl]=await Promise.all([sget("bk_members"),sget("bk_bh"),sget("bk_officials"),sgetAll("bk_bill_"),sget("bk_orgchart"),sgetAll("bk_logo_"),sget("bk_session"),sget("bk_announcement"),sget("bk_active_budget"),sget("bk_budget_cooldown"),sget("bk_submit_lock")]);
+      // Single fetch — pull everything at once instead of 11 round-trips
+      const raw = await sgetAll("");
+      const g = (k) => { try { return raw[k] ? raw[k] : null; } catch{ return null; } };
+      const m=g("bk_members"), bh=g("bk_bh"), off=g("bk_officials"),
+            oc=g("bk_orgchart"), sess=g("bk_session"), ann=g("bk_announcement"),
+            ab=g("bk_active_budget"), bc=g("bk_budget_cooldown"), sl=g("bk_submit_lock");
+      const billsRaw={}, logoRaw={};
+      Object.entries(raw||{}).forEach(([k,v])=>{
+        if(k.startsWith("bk_bill_")) billsRaw[k]=v;
+        else if(k.startsWith("bk_logo_")) logoRaw[k]=v;
+      });
       setMembers(m||{}); setBH(bh||{}); setOff(off||{});
       // Re-hydrate logos from separate keys back into orgChart
       const ocBase=oc||{};
