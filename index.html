@@ -42,6 +42,7 @@ const BUDGET_PORTFOLIOS = [
   "Minister of Defense",
   "Minister of Infrastructure",
   "Minister of Health",
+  "Minister of Foreign Affairs",
 ];
 
 function budgetValidUntil(ratifiedAt) {
@@ -87,6 +88,42 @@ const LAW_CATEGORIES = [
   { v:"court_proc",     l:"Court Procedural Law",   color:"#6a4a8a" },
   { v:"administrative", l:"Administrative Law",     color:"#4a6a6a" },
   { v:"nobility",       l:"Nobility Law",           color:"#8a6a30" },
+  { v:"transport",      l:"Transport Law",          color:"#4a6a8a" },
+];
+
+const GRANDFATHERED_BILLS=[
+  {title:"Open Carry Act 2022",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Ship Cannon Act of 2021",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Arson Illegalization Act 2021",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Lech Criminal Code Act 2020",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Crimes Act 2023",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Sedition Act 2025",category:"criminal",type:"regular",status:"grandfathered"},
+  {title:"Eminent Domain Act 2022",category:"civil",type:"regular",status:"grandfathered"},
+  {title:"Partnership Act 2023",category:"civil",type:"regular",status:"grandfathered"},
+  {title:"Market Dominance Protection Act 2025",category:"civil",type:"regular",status:"grandfathered_repealed"},
+  {title:"Business Act 2025",category:"civil",type:"regular",status:"grandfathered"},
+  {title:"Stand Your Ground Law 2022",category:"civil_rights",type:"regular",status:"grandfathered"},
+  {title:"Search and Seizure Act 2022",category:"civil_rights",type:"regular",status:"grandfathered"},
+  {title:"Anti-Corruption Act 2022",category:"civil_rights",type:"regular",status:"grandfathered"},
+  {title:"Lech Aviation Laws Act 2019",category:"transport",type:"regular",status:"grandfathered"},
+  {title:"Visa Borders Act 2023",category:"transport",type:"regular",status:"grandfathered_repealed"},
+  {title:"July 2022 Budget",category:"revenue",type:"regular",status:"grandfathered"},
+  {title:"Taxation Act April 2020",category:"revenue",type:"regular",status:"grandfathered_repealed"},
+  {title:"Lech Military Additions Act 2020",category:"administrative",type:"regular",status:"grandfathered_repealed"},
+  {title:"Lech OH&S / Border Security Act 2019",category:"administrative",type:"regular",status:"grandfathered_repealed"},
+  {title:"Economic Planning Act 2023",category:"administrative",type:"regular",status:"grandfathered_repealed"},
+  {title:"Public Services Act 2023",category:"administrative",type:"regular",status:"grandfathered_repealed"},
+  {title:"Bundestag Procedure Act 2023",category:"administrative",type:"regular",status:"grandfathered_repealed"},
+  {title:"Legislation Standardization & Formatting Act 2025",category:"administrative",type:"regular",status:"grandfathered"},
+  {title:"First Constitution of The Empire",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"1st Amendment",category:"",type:"constitutional_amendment",status:"grandfathered_repealed"},
+  {title:"2nd Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"3rd Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"4th Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"5th Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"6th Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"7th Amendment",category:"",type:"constitutional_amendment",status:"grandfathered"},
+  {title:"Substantive Titles Act 2022",category:"nobility",type:"regular",status:"grandfathered"},
 ];
 
 const BILL_TYPES = {
@@ -114,6 +151,8 @@ const STATUS_META = {
   failed_bt:    { label:"Failed — Bundestag Rejected",    color:"#c02020", icon:"❌" },
   failed_bh:    { label:"Failed — Bundesherren Rejected", color:"#c02020", icon:"❌" },
   repealed:     { label:"Repealed",                         color:"#8b2020", icon:"🚫" },
+  grandfathered: { label:"⚜ Grandfathered",                   color:"#8a7040", icon:"⚜" },
+  grandfathered_repealed: { label:"⚜ Grandfathered — Repealed", color:"#7a5030", icon:"⚜" },
 };
 
 async function sha256(t) {
@@ -451,6 +490,7 @@ function BillCard({bill,members,bundesherren}) {
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
             <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:C.text,fontWeight:700}}>{sm.icon} {bill.title}</span>
             {bill.type!=="regular"&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:C.gold,border:`1px solid ${C.gold}44`,padding:"2px 6px",borderRadius:2}}>{bt.icon} {bt.label}</span>}
+            {bill.grandfathered&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#8a7040",border:"1px solid #8a704044",padding:"2px 6px",borderRadius:2,background:"#1a1400"}}>⚜ Grandfathered</span>}
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:sm.color,border:`1px solid ${sm.color}44`,padding:"2px 7px",borderRadius:2}}>{bill.status==="pulled"?(bill.pulled_by==="bt_president"?"📥 Pulled — Bundestag President":bill.pulled_by==="bh_president"?"📥 Pulled — Bundesherren President":"📥 Pulled by the Emperor"):sm.label}</span>
@@ -1146,7 +1186,7 @@ function ArchiveTab({bills,members,bundesherren}) {
   const [search,setSearch]=useState("");
 
   const done=Object.values(bills||{})
-    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled"].includes(b.status))
+    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled","grandfathered","grandfathered_repealed"].includes(b.status))
     .sort((a,b)=>(b.ratified_at||b.failed_at||b.repealed_at||b.created)-(a.ratified_at||a.failed_at||a.repealed_at||a.created));
 
   const shown=done.filter(b=>{
@@ -1168,6 +1208,8 @@ function ArchiveTab({bills,members,bundesherren}) {
     {v:"repealed",l:"🚫 Repealed"},
     {v:"failed_bt",l:"❌ Failed — Bundestag"},
     {v:"failed_bh",l:"❌ Failed — Bundesherren"},
+    {v:"grandfathered",l:"⚜ Grandfathered — Active"},
+    {v:"grandfathered_repealed",l:"⚜ Grandfathered — Repealed"},
   ];
   const CAT_OPTS=[
     {v:"all",l:"All Types"},
@@ -2263,6 +2305,53 @@ function SubmitLockSection({submitLock,onAction,notify,setProcessing}) {
   );
 }
 
+// ── Grandfather Section ──────────────────────────────────────────────────────
+function GrandfatherSection({bills,onAction,notify,setProcessing}) {
+  const [done,setDone]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const already=Object.values(bills||{}).some(b=>b.status==="grandfathered"||b.status==="grandfathered_repealed");
+
+  return (
+    <div style={{maxWidth:520}}>
+      <STitle>Grandfather Historical Bills</STitle>
+      <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>
+        Imports all pre-system bills from the Imperial Legislation Database into the archive as <strong style={{color:C.gold}}>⚜ Grandfathered</strong> records. No voting data will be attached. Repealed bills are imported as Grandfathered — Repealed. This can only be run once.
+      </div>
+      {already?(
+        <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a"}}>
+          ✓ Grandfathered bills have already been imported ({Object.values(bills||{}).filter(b=>b.grandfathered).length} records).
+        </div>
+      ):done?(
+        <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a"}}>
+          ✓ {GRANDFATHERED_BILLS.length} bills imported successfully.
+        </div>
+      ):(
+        <div>
+          <div style={{background:C.s1,border:`1px solid ${C.border}`,borderRadius:3,padding:"0.85rem 1rem",marginBottom:"1.25rem"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",color:C.textDD,marginBottom:"0.6rem"}}>BILLS TO BE IMPORTED ({GRANDFATHERED_BILLS.length})</div>
+            <div style={{display:"flex",flexDirection:"column",gap:3,maxHeight:280,overflowY:"auto"}}>
+              {GRANDFATHERED_BILLS.map((b,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 6px",background:C.s2,borderRadius:2,borderLeft:`3px solid ${b.status==="grandfathered_repealed"?"#8b2020":"#8a7040"}`}}>
+                  <span style={{fontSize:12,color:b.status==="grandfathered_repealed"?C.textDD:C.text}}>{b.title}</span>
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:b.status==="grandfathered_repealed"?"#7a5030":"#8a7040",marginLeft:8,flexShrink:0}}>{b.status==="grandfathered_repealed"?"Repealed":""}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <ArmBtn label="⚜ Import All Grandfathered Bills" confirmLabel="Import all historical records?" variant="gold"
+            onConfirm={async()=>{
+              setSaving(true); setProcessing("Importing historical bills…");
+              const res=await onAction("importGrandfathered",{});
+              setProcessing(null); setSaving(false);
+              if(res==="already_imported") notify("Already imported.",C.gold);
+              else { setDone(true); notify("⚜ "+GRANDFATHERED_BILLS.length+" bills imported.",C.gold); }
+            }}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,announcement,activeBudget,submitLock,onAction,notify,setProcessing}) {
   const [section,setSection]=useState("ratify");
   const [pBT,setPBT]=useState(officials?.president_bt||"");
@@ -2300,7 +2389,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
     setProcessing(null); notify("Imported "+parsed.length+" members ("+total+" seats).",C.green); setCsv("");
   };
 
-  const SECS=[["ratify","⚜ Ratification"],["members","Members"],["bh","Bundesherren"],["officials","Officials"],["ministers","Ministers"],["leaders","Party Leaders"],["archive","Archive"],["govChart","Gov Chart"],["budget","💰 Budget"],["announce","📢 Announcement"],["lock","🔒 Submit Lock"],["access","Access Control"]];
+  const SECS=[["ratify","⚜ Ratification"],["members","Members"],["bh","Bundesherren"],["officials","Officials"],["ministers","Ministers"],["leaders","Party Leaders"],["archive","Archive"],["govChart","Gov Chart"],["budget","💰 Budget"],["announce","📢 Announcement"],["lock","🔒 Submit Lock"],["grandfather","⚜ Grandfather"],["access","Access Control"]];
   const depOpts=[{v:"",l:"— Select member —"},...Object.entries(members||{}).map(([id,m])=>({v:id,l:m.name+" ("+m.seats+" seats)"}))];
 
   return (
@@ -2556,6 +2645,10 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
 
       {section==="lock"&&(
         <SubmitLockSection submitLock={submitLock} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
+      )}
+
+      {section==="grandfather"&&(
+        <GrandfatherSection bills={bills} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
       )}
 
       {section==="access"&&(
@@ -4245,6 +4338,26 @@ function App() {
       setBills(p=>({...p,[payload.billId]:next}));
       await sset("bk_bill_"+payload.billId,next);
       notify("Bill pulled from floor.",C.gold);
+    }
+    else if(type==="importGrandfathered"){
+      const existing=Object.values(bills||{}).filter(b=>b.status==="grandfathered"||b.status==="grandfathered_repealed");
+      if(existing.length>0) return "already_imported";
+      const now=Date.now();
+      const newBills={...bills};
+      const saves=[];
+      GRANDFATHERED_BILLS.forEach((b,i)=>{
+        const id="bill_gf_"+i+"_"+uid();
+        const bill={id,title:b.title,type:b.type,category:b.category,gdoc_url:"",origin:"bt",
+          submitter:"Pre-System Record",nominee:"",portfolio:"",
+          status:b.status,created:now-(GRANDFATHERED_BILLS.length-i)*1000,
+          grandfathered:true,bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,
+          ratified_at:now-(GRANDFATHERED_BILLS.length-i)*1000,failed_at:null};
+        newBills[id]=bill;
+        saves.push(sset("bk_bill_"+id,bill));
+      });
+      setBills(newBills);
+      await Promise.all(saves);
+      return "ok";
     }
     else if(type==="denyBill"){
       const next={...bills}; delete next[payload.billId];
