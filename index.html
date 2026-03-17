@@ -78,6 +78,7 @@ const MINISTER_PORTFOLIOS = [
   "Minister of Defense",
   "Minister of Infrastructure",
   "Minister of Health",
+  "Minister of Foreign Affairs",
 ];
 
 const LAW_CATEGORIES = [
@@ -483,12 +484,24 @@ function BillCard({bill,members,bundesherren}) {
   const fmtD=ts=>ts?new Date(ts).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";
   const btData=bill.bt_result||(Object.keys(bill.bt_votes||{}).length>0?calcBT(members,bill.bt_votes):null);
   const bhData=bill.bh_result||(Object.keys(bill.bh_votes||{}).length>0?calcBH(bundesherren,bill.bh_votes):null);
+  const isConstitution=bill.grandfathered&&bill.type==="constitutional_amendment";
+  const outerBorder=isConstitution?`1px solid #c8a87088`:`1px solid ${C.border}`;
+  const outerBorderLeft=isConstitution?`4px solid #C9A84C`:`4px solid ${sm.color}`;
+  const outerBg=isConstitution?"#16120a":C.s2;
+
   return (
-    <div className="fu" style={{background:C.s2,border:`1px solid ${C.border}`,borderLeft:`4px solid ${sm.color}`,borderRadius:"0 3px 3px 0",marginBottom:"0.75rem",overflow:"hidden"}}>
+    <div className="fu" style={{background:outerBg,border:outerBorder,borderLeft:outerBorderLeft,borderRadius:"0 3px 3px 0",marginBottom:"0.75rem",overflow:"hidden",boxShadow:isConstitution?"0 0 12px #C9A84C22":"none"}}>
+      {isConstitution&&(
+        <div style={{background:"linear-gradient(135deg,#2a1e00,#1a1400)",borderBottom:"1px solid #C9A84C33",padding:"4px 12px",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:14}}>📜</span>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.3em",color:"#C9A84C",textTransform:"uppercase"}}>Imperial Constitution of the Empire of Lech</span>
+          <span style={{fontSize:14}}>📜</span>
+        </div>
+      )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"0.85rem 1.1rem",cursor:"pointer"}} onClick={()=>setOpen(o=>!o)}>
         <div style={{flex:1}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-            <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:C.text,fontWeight:700}}>{sm.icon} {bill.title}</span>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:isConstitution?C.gold:C.text,fontWeight:700}}>{isConstitution?"⚜":sm.icon} {bill.title}</span>
             {bill.type!=="regular"&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:C.gold,border:`1px solid ${C.gold}44`,padding:"2px 6px",borderRadius:2}}>{bt.icon} {bt.label}</span>}
             {bill.grandfathered&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#8a7040",border:"1px solid #8a704044",padding:"2px 6px",borderRadius:2,background:"#1a1400"}}>⚜ Grandfathered</span>}
           </div>
@@ -2318,8 +2331,23 @@ function GrandfatherSection({bills,onAction,notify,setProcessing}) {
         Imports all pre-system bills from the Imperial Legislation Database into the archive as <strong style={{color:C.gold}}>⚜ Grandfathered</strong> records. No voting data will be attached. Repealed bills are imported as Grandfathered — Repealed. This can only be run once.
       </div>
       {already?(
-        <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a"}}>
-          ✓ Grandfathered bills have already been imported ({Object.values(bills||{}).filter(b=>b.grandfathered).length} records).
+        <div>
+          <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a",marginBottom:"0.75rem"}}>
+            ✓ {Object.values(bills||{}).filter(b=>b.grandfathered).length} grandfathered records in database.
+            {Object.values(bills||{}).filter(b=>b.grandfathered).length<GRANDFATHERED_BILLS.length&&(
+              <span style={{color:"#f0a050"}}> ({GRANDFATHERED_BILLS.length-Object.values(bills||{}).filter(b=>b.grandfathered).length} missing)</span>
+            )}
+          </div>
+          {Object.values(bills||{}).filter(b=>b.grandfathered).length<GRANDFATHERED_BILLS.length&&(
+            <ArmBtn label="↻ Import Missing Bills" confirmLabel="Import missing records?" variant="gold"
+              onConfirm={async()=>{
+                setProcessing("Importing missing bills…");
+                const res=await onAction("reimportMissingGrandfathered",{});
+                setProcessing(null);
+                if(res==="none_missing") notify("No missing bills.",C.gold);
+                else notify("⚜ "+res+" missing bill"+(res!==1?"s":"")+" imported.",C.gold);
+              }}/>
+          )}
         </div>
       ):done?(
         <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a"}}>
@@ -4339,12 +4367,36 @@ function App() {
       await sset("bk_bill_"+payload.billId,next);
       notify("Bill pulled from floor.",C.gold);
     }
+    else if(type==="reimportMissingGrandfathered"){
+      const existingTitles=new Set(Object.values(bills||{}).filter(b=>b.grandfathered).map(b=>b.title));
+      const missing=GRANDFATHERED_BILLS.filter(b=>!existingTitles.has(b.title));
+      if(missing.length===0) return "none_missing";
+      const now=Date.now();
+      const newBills={...bills};
+      const billList=[];
+      missing.forEach((b,i)=>{
+        const id="bill_gf_re_"+i+"_"+uid();
+        const bill={id,title:b.title,type:b.type,category:b.category,gdoc_url:"",origin:"bt",
+          submitter:"Pre-System Record",nominee:"",portfolio:"",
+          status:b.status,created:now-(missing.length-i)*1000,
+          grandfathered:true,bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,
+          ratified_at:now-(missing.length-i)*1000,failed_at:null};
+        newBills[id]=bill;
+        billList.push({id,bill});
+      });
+      setBills(newBills);
+      for(let i=0;i<billList.length;i+=5){
+        const batch=billList.slice(i,i+5);
+        await Promise.all(batch.map(({id,bill})=>sset("bk_bill_"+id,bill)));
+      }
+      return missing.length;
+    }
     else if(type==="importGrandfathered"){
       const existing=Object.values(bills||{}).filter(b=>b.status==="grandfathered"||b.status==="grandfathered_repealed");
       if(existing.length>0) return "already_imported";
       const now=Date.now();
       const newBills={...bills};
-      const saves=[];
+      const billList=[];
       GRANDFATHERED_BILLS.forEach((b,i)=>{
         const id="bill_gf_"+i+"_"+uid();
         const bill={id,title:b.title,type:b.type,category:b.category,gdoc_url:"",origin:"bt",
@@ -4353,10 +4405,14 @@ function App() {
           grandfathered:true,bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,
           ratified_at:now-(GRANDFATHERED_BILLS.length-i)*1000,failed_at:null};
         newBills[id]=bill;
-        saves.push(sset("bk_bill_"+id,bill));
+        billList.push({id,bill});
       });
       setBills(newBills);
-      await Promise.all(saves);
+      // Write sequentially in batches of 5 to avoid Apps Script throttling
+      for(let i=0;i<billList.length;i+=5){
+        const batch=billList.slice(i,i+5);
+        await Promise.all(batch.map(({id,bill})=>sset("bk_bill_"+id,bill)));
+      }
       return "ok";
     }
     else if(type==="denyBill"){
