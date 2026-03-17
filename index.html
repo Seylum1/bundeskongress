@@ -190,8 +190,6 @@ const STATUS_META = {
   failed_bt:    { label:"Failed — Bundestag Rejected",    color:"#c02020", icon:"❌" },
   failed_bh:    { label:"Failed — Bundesherren Rejected", color:"#c02020", icon:"❌" },
   repealed:     { label:"Repealed",                         color:"#8b2020", icon:"🚫" },
-  grandfathered: { label:"⚜ Grandfathered",                   color:"#8a7040", icon:"⚜" },
-  grandfathered_repealed: { label:"⚜ Grandfathered — Repealed", color:"#7a5030", icon:"⚜" },
 };
 
 async function sha256(t) {
@@ -1237,7 +1235,7 @@ function ArchiveTab({bills,members,bundesherren}) {
   const [search,setSearch]=useState("");
 
   const done=Object.values(bills||{})
-    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled","grandfathered","grandfathered_repealed"].includes(b.status))
+    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled"].includes(b.status))
     .sort((a,b)=>(b.ratified_at||b.failed_at||b.repealed_at||b.created)-(a.ratified_at||a.failed_at||a.repealed_at||a.created));
 
   const shown=done.filter(b=>{
@@ -1259,8 +1257,6 @@ function ArchiveTab({bills,members,bundesherren}) {
     {v:"repealed",l:"🚫 Repealed"},
     {v:"failed_bt",l:"❌ Failed — Bundestag"},
     {v:"failed_bh",l:"❌ Failed — Bundesherren"},
-    {v:"grandfathered",l:"⚜ Grandfathered — Active"},
-    {v:"grandfathered_repealed",l:"⚜ Grandfathered — Repealed"},
   ];
   const CAT_OPTS=[
     {v:"all",l:"All Types"},
@@ -2386,6 +2382,16 @@ function GrandfatherSection({bills,onAction,notify,setProcessing}) {
                 else notify("⚜ "+res+" missing bill"+(res!==1?"s":"")+" imported.",C.gold);
               }}/>
           )}
+          <div style={{marginTop:"0.75rem"}}>
+            <ArmBtn label="✦ Migrate Status — Fix Old Records" confirmLabel="Migrate grandfathered statuses?" variant="gold"
+              onConfirm={async()=>{
+                setProcessing("Migrating bill statuses…");
+                const res=await onAction("migrateGrandfatheredStatus",{});
+                setProcessing(null);
+                if(res===0) notify("No migration needed — all records already correct.",C.gold);
+                else notify("✦ "+res+" bill"+(res!==1?"s":"")+" migrated to passed/repealed.",C.gold);
+              }}/>
+          </div>
           <div style={{marginTop:"0.75rem"}}>
             <ArmBtn label="🔗 Correct Database — Apply Doc Links" confirmLabel="Apply all document links?" variant="gold"
               onConfirm={async()=>{
@@ -4414,6 +4420,22 @@ function App() {
       setBills(p=>({...p,[payload.billId]:next}));
       await sset("bk_bill_"+payload.billId,next);
       notify("Bill pulled from floor.",C.gold);
+    }
+    else if(type==="migrateGrandfatheredStatus"){
+      // Fix old records that used grandfathered/grandfathered_repealed as status
+      const toFix=Object.values(bills||{}).filter(b=>b.status==="grandfathered"||b.status==="grandfathered_repealed");
+      if(toFix.length===0) return 0;
+      const next={...bills};
+      toFix.forEach(b=>{
+        const newStatus=b.status==="grandfathered_repealed"?"repealed":"passed";
+        next[b.id]={...b,status:newStatus,grandfathered:true};
+      });
+      setBills(next);
+      for(let i=0;i<toFix.length;i+=5){
+        const batch=toFix.slice(i,i+5);
+        await Promise.all(batch.map(b=>sset("bk_bill_"+b.id,next[b.id])));
+      }
+      return toFix.length;
     }
     else if(type==="correctDatabase"){
       const gfBills=Object.values(bills||{}).filter(b=>b.grandfathered&&b.status);
