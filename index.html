@@ -39,7 +39,7 @@ const BUDGET_PORTFOLIOS = [
   "Minister of Colonies",
   "Minister of Interior",
   "Minister of Finance",
-  "Minister of War",
+  "Minister of Defense",
   "Minister of Infrastructure",
   "Minister of Health",
   "Minister of Foreign Affairs",
@@ -75,7 +75,7 @@ const MINISTER_PORTFOLIOS = [
   "Minister of Colonies",
   "Minister of Interior",
   "Minister of Finance",
-  "Minister of War",
+  "Minister of Defense",
   "Minister of Infrastructure",
   "Minister of Health",
   "Minister of Foreign Affairs",
@@ -174,6 +174,7 @@ const BILL_TYPES = {
   constitutional_amendment: { label:"Constitutional Amendment", icon:"⚖",  skipBH:false, superMajority:true },
   budget:               { label:"Budget Bill",                  icon:"💰", skipBH:true  },
   budget_supplementary: { label:"Supplementary Budget",         icon:"💰", skipBH:true  },
+  motion:               { label:"Motion",                       icon:"✋", skipBH:false, skipEmperor:true },
 };
 const STATUS_META = {
   pending:      { label:"Pending BT President Approval",  color:"#888888", icon:"⏳" },
@@ -187,6 +188,8 @@ const STATUS_META = {
   pulled:       { label:"Pulled",                           color:"#6a3a6a", icon:"📥" },
   returned:     { label:"Returned for Revisions",           color:"#b05a10", icon:"↩" },
   passed:       { label:"Passed — Now Law",               color:"#3a9c3a", icon:"✅" },
+  motion_passed:{ label:"Motion Passed",                    color:"#5a9a8a", icon:"✋" },
+  motion_failed:{ label:"Motion Failed",                    color:"#c02020", icon:"❌" },
   failed_bt:    { label:"Failed — Bundestag Rejected",    color:"#c02020", icon:"❌" },
   failed_bh:    { label:"Failed — Bundesherren Rejected", color:"#c02020", icon:"❌" },
   repealed:     { label:"Repealed",                         color:"#8b2020", icon:"🚫" },
@@ -439,7 +442,16 @@ function BillPipeline({bill}) {
   // Define stages based on origin and type
   const stages=[];
   stages.push({key:"submitted", label:"Submitted", icon:"📝"});
-  if(bhOriginBill){
+  if(bill.type==="motion"){
+    if(bill.origin==="bh"){
+      stages.push({key:"bh_voting",label:"BH Vote",icon:"🏰"});
+      if(bill.motion_scope==="dual") stages.push({key:"bt_voting",label:"BT Vote",icon:"🏛"});
+    } else {
+      stages.push({key:"bt_voting",label:"BT Vote",icon:"🏛"});
+      if(bill.motion_scope==="dual") stages.push({key:"bh_voting",label:"BH Vote",icon:"🏰"});
+    }
+    stages.push({key:"motion_passed",label:"Passed",icon:"✋"});
+  } else if(bhOriginBill){
     // BH-originated: BH first, then BT vote (unless bhOrigin type), then Emperor
     stages.push({key:"bh_voting", label:"BH Vote",      icon:"🏰"});
     if(!bhSkipBT)
@@ -451,8 +463,10 @@ function BillPipeline({bill}) {
     if(!skipBH)
       stages.push({key:"bh_voting", label:"BH Vote",    icon:"⚜"});
   }
-  stages.push({key:"emperor",   label:"Emperor",      icon:"👑"});
-  stages.push({key:"passed",    label:"Law",          icon:"✅"});
+  if(bill.type!=="motion"){
+    stages.push({key:"emperor",   label:"Emperor",      icon:"👑"});
+    stages.push({key:"passed",    label:"Law",          icon:"✅"});
+  }
 
   // Map current status to stage key
   const stageKey=(()=>{
@@ -464,11 +478,12 @@ function BillPipeline({bill}) {
     if(s==="bh_voting")    return "bh_voting";
     if(["ratification","returned"].includes(s)) return "emperor";
     if(s==="passed")       return "passed";
+    if(s==="motion_passed") return "motion_passed";
     return null;
   })();
 
   const stageIdx=stages.findIndex(st=>st.key===stageKey);
-  const failed=["failed_bt","failed_bh","vetoed","repealed"].includes(s);
+  const failed=["failed_bt","failed_bh","vetoed","repealed","motion_failed"].includes(s);
   const returned=s==="returned";
 
   return (
@@ -505,7 +520,7 @@ function BillPipeline({bill}) {
         })}
         {failed&&(
           <div style={{marginLeft:8,fontFamily:"'Cinzel',serif",fontSize:9,color:C.redL,letterSpacing:"0.1em",marginBottom:18,flexShrink:0}}>
-            {s==="failed_bt"?"✗ Failed BT":s==="failed_bh"?"✗ Failed BH":s==="vetoed"?"🚫 Vetoed":s==="repealed"?"🚫 Repealed":""}
+            {s==="failed_bt"?"✗ Failed BT":s==="failed_bh"?"✗ Failed BH":s==="vetoed"?"🚫 Vetoed":s==="repealed"?"🚫 Repealed":s==="motion_failed"?"✗ Motion Failed":""}
           </div>
         )}
       </div>
@@ -539,6 +554,7 @@ function BillCard({bill,members,bundesherren}) {
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
             <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:isConstitution?C.gold:C.text,fontWeight:700}}>{isConstitution?"⚜":sm.icon} {bill.title}</span>
             {bill.type!=="regular"&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:C.gold,border:`1px solid ${C.gold}44`,padding:"2px 6px",borderRadius:2}}>{bt.icon} {bt.label}</span>}
+            {bill.type==="motion"&&bill.motion_scope&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#5aaf8a",border:"1px solid #3a7a5a44",padding:"2px 6px",borderRadius:2}}>{bill.motion_scope==="dual"?"⚖ Dual Chamber":"🏛 Single Chamber"}</span>}
             {bill.grandfathered&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#8a7040",border:"1px solid #8a704044",padding:"2px 6px",borderRadius:2,background:"#1a1400"}}>⚜ Grandfathered</span>}
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
@@ -560,7 +576,13 @@ function BillCard({bill,members,bundesherren}) {
       {open&&(
         <div style={{borderTop:`1px solid ${C.border}`,padding:"1rem 1.1rem"}}>
           <BillPipeline bill={bill}/>
-          {bill.gdoc_url&&(
+          {bill.type==="motion"&&bill.motion_text&&(
+            <div style={{background:"#0e1a14",border:"1px solid #3a7a5a33",borderLeft:"3px solid #4a9a7a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",marginBottom:"1rem"}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.2em",color:"#5aaf8a",marginBottom:6}}>✋ MOTION TEXT</div>
+              <div style={{fontSize:14,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{bill.motion_text}</div>
+            </div>
+          )}
+          {bill.type!=="motion"&&bill.gdoc_url&&(
             <div style={{marginBottom:"1rem"}}>
               <a href={bill.gdoc_url} target="_blank" rel="noopener noreferrer"
                 style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.1em",padding:"5px 14px",borderRadius:2,
@@ -688,6 +710,7 @@ const TOP_TYPES = [
   { v:"position_nomination",   l:"👤 Position Nomination" },
   { v:"constitutional_amendment", l:"⚖ Constitutional Amendment" },
   { v:"budget",                l:"💰 Budget Bill" },
+  { v:"motion",                l:"✋ Motion" },
 ];
 const POSITION_OPTIONS = [
   { v:"appoint_bt_pres",    l:"🏛 President of the Bundestag" },
@@ -697,6 +720,7 @@ const POSITION_OPTIONS = [
 const BH_TYPES = [
   { v:"regular",         l:"📜 Regular Bill" },
   { v:"appoint_bh_pres", l:"🏰 Nominate President of Bundesherren" },
+  { v:"motion",          l:"✋ Motion" },
 ];
 
 
@@ -711,6 +735,8 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
   const [nominee,setNominee]=useState("");
   const [portfolio,setPortfolio]=useState(MINISTER_PORTFOLIOS[0]);
   const [category,setCategory]=useState(LAW_CATEGORIES[0].v);
+  const [motionText,setMotionText]=useState("");
+  const [motionScope,setMotionScope]=useState("single"); // "single" | "dual"
   const [saving,setSaving]=useState(false);
   const [done,setDone]=useState(false);
   const [err,setErr]=useState("");
@@ -719,30 +745,35 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
   const isBH = chamber==="bh";
   const isBHNomination = isBH && bhType==="appoint_bh_pres";
   const isBHRegular    = isBH && bhType==="regular";
+  const isBHMotion     = isBH && bhType==="motion";
   const isNomination   = isBT && topType==="position_nomination";
   const isMinister     = isNomination && position==="nominate_minister";
   const isConst        = isBT && topType==="constitutional_amendment";
   const isRegular      = isBT && topType==="regular";
   const isBudget       = isBT && topType==="budget";
+  const isMotion       = (isBT && topType==="motion") || isBHMotion;
   const actualType     = isBH ? bhType : (isNomination ? position : topType);
   const needsNominee   = isNomination || isBHNomination;
-  const needsDoc       = !needsNominee;
+  const needsDoc       = !needsNominee && !isMotion;
 
   const reset=()=>{
     setDone(false);setChamber(null);setTopType("regular");setBhType("regular");
     setPosition("appoint_bt_pres");setTitle("");setGdoc("");
     setSubmitter("");setNominee("");setCategory(LAW_CATEGORIES[0].v);
+    setMotionText("");setMotionScope("single");
   };
 
   if(done) return (
     <div style={{maxWidth:480,margin:"0 auto"}}>
       <Card style={{textAlign:"center",padding:"2.5rem"}}>
-        <div style={{fontSize:32,marginBottom:"0.75rem"}}>{isBudget?"💰":"📜"}</div>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:18,color:C.text,marginBottom:8}}>{isBudget?"Budget Bill Submitted":"Bill Submitted"}</div>
+        <div style={{fontSize:32,marginBottom:"0.75rem"}}>{isBudget?"💰":isMotion?"✋":"📜"}</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:18,color:C.text,marginBottom:8}}>{isBudget?"Budget Bill Submitted":isMotion?"Motion Submitted":"Bill Submitted"}</div>
         <div style={{fontSize:15,color:C.textD,fontStyle:"italic",lineHeight:1.7}}>
           {isBudget?"Your budget bill is pending approval by the President of the Bundestag."
             :isNomination?"Your nomination is pending Imperial approval before going to the floor."
             :isBHNomination?"Your nomination is pending BH President approval before the vote."
+            :isMotion&&motionScope==="single"?("Your motion is pending approval by the President of the "+(isBH?"Bundesherren.":"Bundestag."))
+            :isMotion?"Your motion is pending approval and will require a vote in both chambers."
             :isBH?"Your bill is pending approval by the President of the Bundesherren."
             :"Your bill is now pending approval by the President of the Bundestag."}
         </div>
@@ -861,7 +892,7 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
         {isConst&&(
           <div style={{background:"#0a1a2a",border:`1px solid #4a88ff44`,borderLeft:`3px solid #4a88ff`,borderRadius:"0 3px 3px 0",padding:"0.75rem 1rem",fontSize:14,color:"#88bbff",lineHeight:1.7}}>
             <strong style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:"0.12em",display:"block",marginBottom:4}}>⚖ CONSTITUTIONAL AMENDMENT</strong>
-            Requires 667+ seats in the Bundestag and a majority of the Bundesherren. Goes to BT first, then BH, then Emperor.
+            Requires 667+ seats in the Bundestag and a majority of the Bundesherren. Goes to BH first, then BT, then Emperor.
           </div>
         )}
         {isBHRegular&&(
@@ -877,6 +908,32 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
           </div>
         )}
 
+        {isMotion&&(
+          <div>
+            <div style={{background:"#0e1a14",border:"1px solid #3a7a5a44",borderLeft:"3px solid #4a9a7a",borderRadius:"0 3px 3px 0",padding:"0.75rem 1rem",marginBottom:"0.85rem",fontSize:14,color:"#80c8a0",lineHeight:1.7}}>
+              <strong style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.12em",display:"block",marginBottom:4,color:"#6abf90"}}>✋ MOTION</strong>
+              Motions are resolutions passed directly by the chamber(s) without requiring a Google Doc. Write the full motion text below. The Emperor is not required to ratify motions.
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:"0.85rem"}}>
+              <div onClick={()=>setMotionScope("single")}
+                style={{flex:1,padding:"0.6rem 0.85rem",cursor:"pointer",borderRadius:3,textAlign:"center",
+                         border:`2px solid ${motionScope==="single"?"#4a9a7a":"#333"}`,
+                         background:motionScope==="single"?"#0a1a14":"transparent"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.1em",color:motionScope==="single"?"#6abf90":C.textD,marginBottom:3}}>🏛 SINGLE CHAMBER</div>
+                <div style={{fontSize:12,color:C.textD,fontStyle:"italic"}}>Only the {isBH?"Bundesherren":"Bundestag"} votes</div>
+              </div>
+              <div onClick={()=>setMotionScope("dual")}
+                style={{flex:1,padding:"0.6rem 0.85rem",cursor:"pointer",borderRadius:3,textAlign:"center",
+                         border:`2px solid ${motionScope==="dual"?"#4a9a7a":"#333"}`,
+                         background:motionScope==="dual"?"#0a1a14":"transparent"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.1em",color:motionScope==="dual"?"#6abf90":C.textD,marginBottom:3}}>⚖ DUAL CHAMBER</div>
+                <div style={{fontSize:12,color:C.textD,fontStyle:"italic"}}>Both BT and BH must pass</div>
+              </div>
+            </div>
+            <FL>MOTION TEXT *</FL>
+            <TA value={motionText} onChange={setMotionText} placeholder="Write the full text of the motion here…" rows={6}/>
+          </div>
+        )}
         {needsNominee
           ?<div><FL>NOMINEE NAME *</FL><Inp value={nominee} onChange={setNominee} placeholder="Full name of the nominee"/></div>
           :<div><FL>BILL TITLE *</FL><Inp value={title} onChange={setTitle} placeholder="e.g. Imperial Revenue Act 2024"/></div>
@@ -898,6 +955,8 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
         <Btn onClick={async()=>{
           if(!submitter.trim()){setErr("Please enter your name.");return;}
           if(needsNominee&&!nominee.trim()){setErr("Please enter the nominee's name.");return;}
+          if(isMotion&&!title.trim()){setErr("Please enter a title for the motion.");return;}
+          if(isMotion&&!motionText.trim()){setErr("Please write the motion text.");return;}
           if(needsDoc&&(!title.trim()||!gdoc.trim())){setErr("Please fill all required fields.");return;}
           if(needsDoc&&!gdoc.startsWith("http")){setErr("Google Doc link must start with http.");return;}
           setSaving(true);setErr("");
@@ -907,16 +966,18 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
           const res=await onSubmit({
             origin:chamber,
             type:actualType, title:billTitle,
-            gdoc_url:needsNominee?"":gdoc.trim(),
+            gdoc_url:needsNominee?"":isMotion?"":gdoc.trim(),
             submitter:submitter.trim(),
             nominee:needsNominee?nominee.trim():"",
             portfolio:isMinister?portfolio:"",
             category:(isRegular||isBHRegular)?category:"",
+            motion_text:isMotion?motionText.trim():undefined,
+            motion_scope:isMotion?motionScope:undefined,
           });
           setSaving(false);
           if(res==="cap") setErr("⚠ The President's queue is full (25 bills max). Wait for the President to review existing submissions before proposing more.");
           else if(res) setDone(true); else setErr("⚠ Submission failed — check your connection and try again.");
-        }} disabled={saving||!submitter.trim()||(needsNominee&&!nominee.trim())||(needsDoc&&(!title.trim()||!gdoc.trim()))} full>
+        }} disabled={saving||!submitter.trim()||(needsNominee&&!nominee.trim())||(needsDoc&&(!title.trim()||!gdoc.trim()))||(isMotion&&(!title.trim()||!motionText.trim()))} full>
           {saving?"Submitting…":"⚜ Submit Bill"}
         </Btn>
       </div>
@@ -1235,7 +1296,7 @@ function ArchiveTab({bills,members,bundesherren}) {
   const [search,setSearch]=useState("");
 
   const done=Object.values(bills||{})
-    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled"].includes(b.status))
+    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled","motion_passed","motion_failed"].includes(b.status))
     .sort((a,b)=>(b.ratified_at||b.failed_at||b.repealed_at||b.created)-(a.ratified_at||a.failed_at||a.repealed_at||a.created));
 
   const shown=done.filter(b=>{
@@ -1257,6 +1318,8 @@ function ArchiveTab({bills,members,bundesherren}) {
     {v:"repealed",l:"🚫 Repealed"},
     {v:"failed_bt",l:"❌ Failed — Bundestag"},
     {v:"failed_bh",l:"❌ Failed — Bundesherren"},
+    {v:"motion_passed",l:"✋ Motion Passed"},
+    {v:"motion_failed",l:"❌ Motion Failed"},
   ];
   const CAT_OPTS=[
     {v:"all",l:"All Types"},
@@ -4344,8 +4407,9 @@ function App() {
       if(origin==="bh") status="pending_bh";
       else if(isBTNom) status="pending_emperor";
       else status="pending";
-      const bill={id,title:payload.title,type:payload.type,gdoc_url:payload.gdoc_url,origin,
+      const bill={id,title:payload.title,type:payload.type,gdoc_url:payload.gdoc_url||"",origin,
         submitter:payload.submitter,nominee:payload.nominee||"",portfolio:payload.portfolio||"",category:payload.category||"",
+        motion_text:payload.motion_text||"",motion_scope:payload.motion_scope||"",
         status,created:Date.now(),bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,ratified_at:null,failed_at:null};
       setBills(p=>({...p,[id]:bill}));
       return await sset("bk_bill_"+id,bill);
@@ -4380,10 +4444,19 @@ function App() {
       const bill=bills[billId]; if(!bill) return;
       const bt=BILL_TYPES[bill.type]||BILL_TYPES.regular;
       // BH-originated bills already had their BH vote — go straight to ratification
-      const nextStatus=result.passed
-        ?(bill.origin==="bh"?"ratification":(bt.skipBH?"ratification":"bh_voting"))
-        :"failed_bt";
-      const next={...bill,bt_result:{...result,closed_at:Date.now()},status:nextStatus,failed_at:nextStatus==="failed_bt"?Date.now():null};
+      const isMotionBill=bill.type==="motion";
+      const dualMotion=isMotionBill&&bill.motion_scope==="dual";
+      let nextStatus;
+      if(isMotionBill){
+        nextStatus=result.passed?(dualMotion&&bill.origin!=="bh"?"bh_voting":"motion_passed"):"motion_failed";
+      } else {
+        nextStatus=result.passed
+          ?(bill.origin==="bh"?"ratification":(bt.skipBH?"ratification":"bh_voting"))
+          :"failed_bt";
+      }
+      const next={...bill,bt_result:{...result,closed_at:Date.now()},status:nextStatus,
+        ratified_at:nextStatus==="motion_passed"?Date.now():null,
+        failed_at:nextStatus==="motion_failed"?Date.now():null};
       setBills(p=>({...p,[billId]:next}));
       await sset("bk_bill_"+billId,next);
     }
@@ -4393,10 +4466,19 @@ function App() {
       const btDef=BILL_TYPES[bill.type]||BILL_TYPES.regular;
       // BH-originated: pass → BT (unless appoint_bh_pres which skips BT → ratification)
       // BT-originated: pass → ratification (BH is the second chamber)
-      const nextStatus=result.passed
-        ?(bill.origin==="bh"?(btDef.bhOrigin?"ratification":"pending"):"ratification")
-        :"failed_bh";
-      const next={...bill,bh_result:{...result,closed_at:Date.now()},status:nextStatus,failed_at:nextStatus==="failed_bh"?Date.now():null};
+      const isMotionBill2=bill.type==="motion";
+      const dualMotion2=isMotionBill2&&bill.motion_scope==="dual";
+      let nextStatus;
+      if(isMotionBill2){
+        nextStatus=result.passed?(dualMotion2&&bill.origin==="bh"?"pending":"motion_passed"):"motion_failed";
+      } else {
+        nextStatus=result.passed
+          ?(bill.origin==="bh"?(btDef.bhOrigin?"ratification":"pending"):"ratification")
+          :"failed_bh";
+      }
+      const next={...bill,bh_result:{...result,closed_at:Date.now()},status:nextStatus,
+        ratified_at:nextStatus==="motion_passed"?Date.now():null,
+        failed_at:nextStatus==="motion_failed"?Date.now():null};
       setBills(p=>({...p,[billId]:next}));
       await sset("bk_bill_"+billId,next);
     }
