@@ -39,7 +39,7 @@ const BUDGET_PORTFOLIOS = [
   "Minister of Colonies",
   "Minister of Interior",
   "Minister of Finance",
-  "Minister of Defense",
+  "Minister of War",
   "Minister of Infrastructure",
   "Minister of Health",
   "Minister of Foreign Affairs",
@@ -75,7 +75,7 @@ const MINISTER_PORTFOLIOS = [
   "Minister of Colonies",
   "Minister of Interior",
   "Minister of Finance",
-  "Minister of Defense",
+  "Minister of War",
   "Minister of Infrastructure",
   "Minister of Health",
   "Minister of Foreign Affairs",
@@ -175,6 +175,7 @@ const BILL_TYPES = {
   budget:               { label:"Budget Bill",                  icon:"💰", skipBH:true  },
   budget_supplementary: { label:"Supplementary Budget",         icon:"💰", skipBH:true  },
   motion:               { label:"Motion",                       icon:"✋", skipBH:false, skipEmperor:true },
+  dissolve_government:  { label:"Dissolve Government",           icon:"🏚", skipBH:true, dissolve:true },
 };
 const STATUS_META = {
   pending:      { label:"Pending BT President Approval",  color:"#888888", icon:"⏳" },
@@ -189,6 +190,7 @@ const STATUS_META = {
   returned:     { label:"Returned for Revisions",           color:"#b05a10", icon:"↩" },
   passed:       { label:"Passed — Now Law",               color:"#3a9c3a", icon:"✅" },
   motion_passed:{ label:"Motion Passed",                    color:"#5a9a8a", icon:"✋" },
+  decree:       { label:"Imperial Decree",                   color:"#C9A84C", icon:"⚜" },
   motion_failed:{ label:"Motion Failed",                    color:"#c02020", icon:"❌" },
   failed_bt:    { label:"Failed — Bundestag Rejected",    color:"#c02020", icon:"❌" },
   failed_bh:    { label:"Failed — Bundesherren Rejected", color:"#c02020", icon:"❌" },
@@ -536,12 +538,21 @@ function BillCard({bill,members,bundesherren}) {
   const btData=bill.bt_result||(Object.keys(bill.bt_votes||{}).length>0?calcBT(members,bill.bt_votes):null);
   const bhData=bill.bh_result||(Object.keys(bill.bh_votes||{}).length>0?calcBH(bundesherren,bill.bh_votes):null);
   const isConstitution=bill.grandfathered&&bill.type==="constitutional_amendment";
-  const outerBorder=isConstitution?`1px solid #c8a87088`:`1px solid ${C.border}`;
-  const outerBorderLeft=isConstitution?`4px solid #C9A84C`:`4px solid ${sm.color}`;
-  const outerBg=isConstitution?"#16120a":C.s2;
+
+  const isDecree=bill.status==="decree";
+  const finalBg=isConstitution?"#16120a":isDecree?"#160810":C.s2;
+  const finalBorder=isConstitution?`1px solid #c8a87088`:isDecree?`1px solid #8b1a4a55`:`1px solid ${C.border}`;
+  const finalBorderLeft=isConstitution?`4px solid #C9A84C`:isDecree?`4px solid #8b1a4a`:`4px solid ${sm.color}`;
+  const finalShadow=isConstitution?"0 0 12px #C9A84C22":isDecree?"0 0 8px #8b1a4a22":"none";
 
   return (
-    <div className="fu" style={{background:outerBg,border:outerBorder,borderLeft:outerBorderLeft,borderRadius:"0 3px 3px 0",marginBottom:"0.75rem",overflow:"hidden",boxShadow:isConstitution?"0 0 12px #C9A84C22":"none"}}>
+    <div className="fu" style={{background:finalBg,border:finalBorder,borderLeft:finalBorderLeft,borderRadius:"0 3px 3px 0",marginBottom:"0.75rem",overflow:"hidden",boxShadow:finalShadow}}>
+      {isDecree&&(
+        <div style={{background:"linear-gradient(135deg,#1a0820,#120614)",borderBottom:"1px solid #8b1a4a33",padding:"4px 12px",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:14}}>⚜</span>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.3em",color:"#c060a0",textTransform:"uppercase"}}>Imperial Instrument of Law</span>
+        </div>
+      )}
       {isConstitution&&(
         <div style={{background:"linear-gradient(135deg,#2a1e00,#1a1400)",borderBottom:"1px solid #C9A84C33",padding:"4px 12px",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:14}}>📜</span>
@@ -555,6 +566,7 @@ function BillCard({bill,members,bundesherren}) {
             <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:isConstitution?C.gold:C.text,fontWeight:700}}>{isConstitution?"⚜":sm.icon} {bill.title}</span>
             {bill.type!=="regular"&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:C.gold,border:`1px solid ${C.gold}44`,padding:"2px 6px",borderRadius:2}}>{bt.icon} {bt.label}</span>}
             {bill.type==="motion"&&bill.motion_scope&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#5aaf8a",border:"1px solid #3a7a5a44",padding:"2px 6px",borderRadius:2}}>{bill.motion_scope==="dual"?"⚖ Dual Chamber":"🏛 Single Chamber"}</span>}
+            {bill.status==="decree"&&bill.decree_subtype&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:C.gold,border:`1px solid ${C.gold}44`,padding:"2px 6px",borderRadius:2}}>⚜ {DECREE_SUBTYPES.find(d=>d.v===bill.decree_subtype)?.l||"Imperial Decree"}</span>}
             {bill.grandfathered&&<span style={{fontFamily:"'Cinzel',serif",fontSize:8,color:"#8a7040",border:"1px solid #8a704044",padding:"2px 6px",borderRadius:2,background:"#1a1400"}}>⚜ Grandfathered</span>}
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
@@ -576,6 +588,23 @@ function BillCard({bill,members,bundesherren}) {
       {open&&(
         <div style={{borderTop:`1px solid ${C.border}`,padding:"1rem 1.1rem"}}>
           <BillPipeline bill={bill}/>
+          {bill.status==="decree"&&(bill.decree_text||bill.gdoc_url)&&(
+            <div style={{marginBottom:"1rem"}}>
+              {bill.gdoc_url&&(
+                <a href={bill.gdoc_url} target="_blank" rel="noopener noreferrer"
+                  style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.1em",padding:"5px 14px",borderRadius:2,
+                           border:`1px solid ${C.gold}55`,background:"#2a2000",color:C.gold,textDecoration:"none",display:"inline-block",marginBottom:bill.decree_text?"0.75rem":"0"}}>
+                  📄 View Decree Document →
+                </a>
+              )}
+              {bill.decree_text&&(
+                <div style={{background:"#1a1400",border:`1px solid ${C.gold}33`,borderLeft:`3px solid ${C.gold}`,borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem"}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.2em",color:C.gold,marginBottom:6}}>⚜ IMPERIAL DECREE TEXT</div>
+                  <div style={{fontSize:14,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{bill.decree_text}</div>
+                </div>
+              )}
+            </div>
+          )}
           {bill.type==="motion"&&bill.motion_text&&(
             <div style={{background:"#0e1a14",border:"1px solid #3a7a5a33",borderLeft:"3px solid #4a9a7a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",marginBottom:"1rem"}}>
               <div style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.2em",color:"#5aaf8a",marginBottom:6}}>✋ MOTION TEXT</div>
@@ -711,6 +740,7 @@ const TOP_TYPES = [
   { v:"constitutional_amendment", l:"⚖ Constitutional Amendment" },
   { v:"budget",                l:"💰 Budget Bill" },
   { v:"motion",                l:"✋ Motion" },
+  { v:"dissolve_government",   l:"🏚 Dissolve Government" },
 ];
 const POSITION_OPTIONS = [
   { v:"appoint_bt_pres",    l:"🏛 President of the Bundestag" },
@@ -724,7 +754,7 @@ const BH_TYPES = [
 ];
 
 
-function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart,submitLock}) {
+function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart,submitLock,imperialReserve}) {
   const [chamber,setChamber]=useState(null); // null | "bt" | "bh"
   const [topType,setTopType]=useState("regular");
   const [bhType,setBhType]=useState("regular");
@@ -801,7 +831,7 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
                    fontFamily:"'Cinzel',serif",fontSize:9,color:C.textD,cursor:"pointer",letterSpacing:"0.1em"}}>← Back</button>
         <div style={{fontFamily:"'Cinzel',serif",fontSize:10,color:C.gold,letterSpacing:"0.2em"}}>💰 BUDGET BILL — BUNDESTAG</div>
       </div>
-      <BudgetSubmitSection activeBudget={activeBudget} budgetCooldown={budgetCooldown} orgChart={orgChart}
+      <BudgetSubmitSection activeBudget={activeBudget} budgetCooldown={budgetCooldown} orgChart={orgChart} imperialReserve={imperialReserve}
         onSubmitBudget={async(data)=>{const ok=await onSubmitBudget(data);if(ok)setDone(true);return ok;}}/>
     </div>
   );
@@ -908,6 +938,12 @@ function SubmitTab({onSubmit,onSubmitBudget,activeBudget,budgetCooldown,orgChart
           </div>
         )}
 
+        {isBT&&topType==="dissolve_government"&&(
+          <div style={{background:"#1a0808",border:`1px solid ${C.redL}44`,borderLeft:`3px solid ${C.redL}`,borderRadius:"0 3px 3px 0",padding:"0.75rem 1rem",marginBottom:"0.85rem",fontSize:14,color:C.redL,lineHeight:1.7}}>
+            <strong style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.12em",display:"block",marginBottom:4}}>🏚 DISSOLVE GOVERNMENT</strong>
+            Passes the Bundestag by simple majority (501+ seats). Does not go to the Bundesherren. Requires Imperial ratification. Upon ratification, all Bundestag members, ministers, Vice Chancellor and Chancellor are immediately dismissed.
+          </div>
+        )}
         {isMotion&&(
           <div>
             <div style={{background:"#0e1a14",border:"1px solid #3a7a5a44",borderLeft:"3px solid #4a9a7a",borderRadius:"0 3px 3px 0",padding:"0.75rem 1rem",marginBottom:"0.85rem",fontSize:14,color:"#80c8a0",lineHeight:1.7}}>
@@ -1295,15 +1331,24 @@ function ArchiveTab({bills,members,bundesherren}) {
   const [catFilter,setCatFilter]=useState("all");
   const [search,setSearch]=useState("");
 
+  const statusMatch=(b,f)=>{
+    if(f==="all") return true;
+    if(f==="passed_all") return b.status==="passed"||b.status==="motion_passed";
+    if(f==="failed_all") return b.status==="failed_bt"||b.status==="failed_bh"||b.status==="motion_failed";
+    return b.status===f;
+  };
+
   const done=Object.values(bills||{})
-    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled","motion_passed","motion_failed"].includes(b.status))
+    .filter(b=>["passed","failed_bt","failed_bh","repealed","vetoed","pulled","motion_passed","motion_failed","decree"].includes(b.status))
     .sort((a,b)=>(b.ratified_at||b.failed_at||b.repealed_at||b.created)-(a.ratified_at||a.failed_at||a.repealed_at||a.created));
 
   const shown=done.filter(b=>{
-    const statusOk=statusFilter==="all"||b.status===statusFilter;
+    const statusOk=statusMatch(b,statusFilter);
     const catOk=catFilter==="all"
       ||(catFilter==="nomination"&&["appoint_bt_pres","appoint_chancellor","appoint_bh_pres","nominate_minister"].includes(b.type))
       ||(catFilter==="constitutional"&&b.type==="constitutional_amendment")
+      ||(catFilter==="decree_type"&&b.status==="decree")
+      ||(catFilter==="motion"&&b.type==="motion")
       ||(catFilter===b.category);
     const q=search.trim().toLowerCase();
     const searchOk=!q||b.title?.toLowerCase().includes(q)||b.submitter?.toLowerCase().includes(q)||b.nominee?.toLowerCase().includes(q);
@@ -1311,20 +1356,25 @@ function ArchiveTab({bills,members,bundesherren}) {
   });
 
   const STATUS_OPTS=[
-    {v:"all",l:"All Statuses"},
-    {v:"passed",l:"✅ Passed"},
-    {v:"vetoed",l:"🚫 Vetoed"},
-    {v:"pulled",l:"📥 Pulled"},
-    {v:"repealed",l:"🚫 Repealed"},
-    {v:"failed_bt",l:"❌ Failed — Bundestag"},
-    {v:"failed_bh",l:"❌ Failed — Bundesherren"},
-    {v:"motion_passed",l:"✋ Motion Passed"},
-    {v:"motion_failed",l:"❌ Motion Failed"},
+    {v:"all",         l:"All Statuses"},
+    {v:"passed_all",  l:"Passed"},
+    {v:"failed_all",  l:"Failed"},
+    {v:"vetoed",      l:"Vetoed"},
+    {v:"pulled",      l:"Pulled"},
+    {v:"repealed",    l:"Repealed"},
+    {v:"decree",      l:"Imperial Decree"},
   ];
+  const statusCount=(f)=>{
+    if(f==="passed_all") return done.filter(b=>b.status==="passed"||b.status==="motion_passed").length;
+    if(f==="failed_all") return done.filter(b=>b.status==="failed_bt"||b.status==="failed_bh"||b.status==="motion_failed").length;
+    return done.filter(b=>b.status===f).length;
+  };
   const CAT_OPTS=[
     {v:"all",l:"All Types"},
-    {v:"constitutional",l:"⚖ Constitutional Amendment"},
-    {v:"nomination",l:"👤 Nominations"},
+    {v:"constitutional",l:"Constitutional Amendment"},
+    {v:"nomination",l:"Nominations"},
+    {v:"decree_type",l:"Imperial Decrees"},
+    {v:"motion",l:"Motions"},
     ...LAW_CATEGORIES.map(lc=>({v:lc.v,l:lc.l})),
   ];
 
@@ -1349,7 +1399,7 @@ function ArchiveTab({bills,members,bundesherren}) {
           <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
             style={{width:"100%",background:C.s2,border:`1px solid ${C.border}`,borderRadius:2,
                      padding:"7px 10px",color:C.text,fontSize:14,outline:"none",fontFamily:"'Crimson Text',serif"}}>
-            {STATUS_OPTS.map(o=><option key={o.v} value={o.v}>{o.l} {o.v!=="all"?"("+done.filter(b=>b.status===o.v).length+")":""}</option>)}
+            {STATUS_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}{o.v!=="all"?" ("+statusCount(o.v)+")":""}</option>)}
           </select>
         </div>
         <div style={{flex:1,minWidth:160}}>
@@ -2415,6 +2465,136 @@ function SubmitLockSection({submitLock,onAction,notify,setProcessing}) {
   );
 }
 
+// ── Imperial Reserve Section ─────────────────────────────────────────────────
+function ImperialReserveSection({imperialReserve,onAction,notify,setProcessing}) {
+  const [amount,setAmount]=useState(String(imperialReserve||0));
+  const [saving,setSaving]=useState(false);
+  return (
+    <div style={{maxWidth:420}}>
+      <STitle>Imperial Reserve</STitle>
+      <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>
+        The Imperial Reserve is the Empire's treasury surplus fund. It is shown on all budget proposals and ratified budgets. Deficit budgets note that the shortfall is drawn from this reserve.
+      </div>
+      <div style={{background:C.s1,border:`1px solid ${C.gold}44`,borderTop:`3px solid ${C.gold}`,borderRadius:"0 0 3px 3px",padding:"1.25rem",marginBottom:"1.25rem",textAlign:"center"}}>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.2em",color:C.textDD,marginBottom:6}}>CURRENT IMPERIAL RESERVE</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:28,color:C.gold,fontWeight:700}}>{fmtCur(imperialReserve||0)}</div>
+      </div>
+      <div style={{marginBottom:"0.85rem"}}>
+        <FL>SET IMPERIAL RESERVE</FL>
+        <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0"
+          style={{width:"100%",background:C.s2,border:`1px solid ${C.border}`,borderRadius:2,
+                   padding:"7px 10px",color:C.text,fontSize:15,outline:"none",textAlign:"right"}}
+          onFocus={e=>e.target.style.borderColor=C.gold} onBlur={e=>e.target.style.borderColor=C.border}/>
+      </div>
+      <Btn variant="gold" disabled={saving} onClick={async()=>{
+        setSaving(true); setProcessing("Updating reserve…");
+        await onAction("saveImperialReserve",{amount:parseFloat(amount)||0});
+        setProcessing(null); setSaving(false);
+      }}>{saving?"Saving…":"⚜ Set Reserve"}</Btn>
+    </div>
+  );
+}
+
+// ── Imperial Decree Section ───────────────────────────────────────────────────
+const DECREE_SUBTYPES=[
+  {v:"decree",       l:"Imperial Decree"},
+  {v:"letters_patent",l:"Letters Patent"},
+  {v:"proclamation", l:"Imperial Proclamation"},
+  {v:"edict",        l:"Imperial Edict"},
+  {v:"warrant",      l:"Royal Warrant"},
+];
+function ImperialDecreeSection({onAction,notify,setProcessing}) {
+  const [title,setTitle]=useState("");
+  const [subtype,setSubtype]=useState("decree");
+  const [gdoc,setGdoc]=useState("");
+  const [text,setText]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [done,setDone]=useState(false);
+  const [err,setErr]=useState("");
+  const hasDoc=gdoc.trim().startsWith("http");
+  const hasText=text.trim().length>0;
+
+  if(done) return (
+    <div>
+      <STitle>Imperial Decrees</STitle>
+      <div style={{background:"#0a1a0a",border:"1px solid #2a5a2a44",borderLeft:"3px solid #3a9c3a",borderRadius:"0 3px 3px 0",padding:"0.85rem 1rem",fontSize:14,color:"#7ad47a",marginBottom:"0.85rem"}}>
+        ✓ Decree promulgated and added to the archive.
+      </div>
+      <Btn variant="ghost" small onClick={()=>{setDone(false);setTitle("");setGdoc("");setText("");setSubtype("decree");setErr("");}}>Promulgate Another</Btn>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:520}}>
+      <STitle>Imperial Decrees</STitle>
+      <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>
+        Promulgate an Imperial Decree, Letters Patent, Proclamation, or other instrument of Imperial law. Decrees are entered directly into the Legislative Archive as law — no vote required.
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:"0.85rem"}}>
+        <div><FL>DECREE TYPE</FL><DD value={subtype} onChange={setSubtype} options={DECREE_SUBTYPES}/></div>
+        <div><FL>TITLE *</FL><Inp value={title} onChange={setTitle} placeholder="e.g. Letters Patent — Establishment of the Imperial Court"/></div>
+        <div>
+          <FL>GOOGLE DOC LINK (optional)</FL>
+          <Inp value={gdoc} onChange={setGdoc} placeholder="https://docs.google.com/…"/>
+          <div style={{fontSize:11,color:C.textDD,marginTop:3,fontStyle:"italic"}}>Paste the document link if the decree has a full written instrument.</div>
+        </div>
+        <div>
+          <FL>DECREE TEXT (optional)</FL>
+          <TA value={text} onChange={setText} placeholder="Write the text of the decree here if no document…" rows={6}/>
+        </div>
+        {!hasDoc&&!hasText&&title.trim()&&(
+          <div style={{background:"#1a1200",border:`1px solid ${C.gold}33`,borderLeft:`3px solid ${C.gold}`,borderRadius:"0 3px 3px 0",padding:"0.6rem 1rem",fontSize:13,color:"#c8a870",fontStyle:"italic"}}>
+            ⚠ Either a document link or decree text is recommended.
+          </div>
+        )}
+        {err&&<div style={{background:"#1a0808",border:`1px solid ${C.redL}44`,borderLeft:`3px solid ${C.redL}`,padding:"0.6rem 1rem",borderRadius:"0 3px 3px 0",fontSize:13,color:C.redL}}>{err}</div>}
+        <Btn variant="gold" disabled={saving||!title.trim()} onClick={async()=>{
+          if(!title.trim()){setErr("Title is required.");return;}
+          setSaving(true); setProcessing("Promulgating decree…");
+          const ok=await onAction("saveDecree",{title:title.trim(),gdoc_url:gdoc.trim(),decree_text:text.trim(),decree_subtype:subtype});
+          setProcessing(null); setSaving(false);
+          if(ok) setDone(true); else setErr("Failed — check connection.");
+        }}>{saving?"Promulgating…":"⚜ Promulgate Decree"}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── Imperial Links Section ────────────────────────────────────────────────────
+function ImperialLinksSection({imperialLinks,onAction,notify}) {
+  const [links,setLinks]=useState(imperialLinks||[]);
+  const [saving,setSaving]=useState(false);
+  const addLink=()=>setLinks(p=>[...p,{id:"lnk_"+Date.now(),label:"",url:""}]);
+  const setLink=(id,field,val)=>setLinks(p=>p.map(l=>l.id===id?{...l,[field]:val}:l));
+  const removeLink=id=>setLinks(p=>p.filter(l=>l.id!==id));
+
+  return (
+    <div style={{maxWidth:520}}>
+      <STitle>Imperial Link Directory</STitle>
+      <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>
+        Add external websites to the Imperial Links tab visible to all users at the top of the site.
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:"0.85rem"}}>
+        {links.map(l=>(
+          <div key={l.id} style={{display:"flex",gap:6,alignItems:"center"}}>
+            <Inp value={l.label} onChange={v=>setLink(l.id,"label",v)} placeholder="Label (e.g. Imperial Map)" style={{flex:1}}/>
+            <Inp value={l.url} onChange={v=>setLink(l.id,"url",v)} placeholder="https://…" style={{flex:2}}/>
+            <button onClick={()=>removeLink(l.id)} style={{background:"transparent",border:"none",color:C.textDD,cursor:"pointer",fontSize:16,lineHeight:1,flexShrink:0}}>✕</button>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn variant="ghost" small onClick={addLink}>+ Add Link</Btn>
+        <Btn variant="gold" disabled={saving} onClick={async()=>{
+          setSaving(true);
+          await onAction("saveImperialLinks",{links:links.filter(l=>l.label.trim()&&l.url.trim())});
+          setSaving(false);
+        }}>{saving?"Saving…":"💾 Save Links"}</Btn>
+      </div>
+    </div>
+  );
+}
+
 // ── Grandfather Section ──────────────────────────────────────────────────────
 function GrandfatherSection({bills,onAction,notify,setProcessing}) {
   const [done,setDone]=useState(false);
@@ -2497,7 +2677,7 @@ function GrandfatherSection({bills,onAction,notify,setProcessing}) {
   );
 }
 
-function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,announcement,activeBudget,submitLock,onAction,notify,setProcessing}) {
+function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,announcement,activeBudget,submitLock,imperialReserve,imperialLinks,onAction,notify,setProcessing}) {
   const [section,setSection]=useState("ratify");
   const [pBT,setPBT]=useState(officials?.president_bt||"");
   const [chan,setChan]=useState(officials?.chancellor||"");
@@ -2534,7 +2714,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
     setProcessing(null); notify("Imported "+parsed.length+" members ("+total+" seats).",C.green); setCsv("");
   };
 
-  const SECS=[["ratify","⚜ Ratification"],["members","Members"],["bh","Bundesherren"],["officials","Officials"],["ministers","Ministers"],["leaders","Party Leaders"],["archive","Archive"],["govChart","Gov Chart"],["budget","💰 Budget"],["announce","📢 Announcement"],["lock","🔒 Submit Lock"],["grandfather","⚜ Grandfather"],["access","Access Control"]];
+  const SECS=[["ratify","⚜ Ratification"],["members","Members"],["bh","Bundesherren"],["officials","Officials"],["ministers","Ministers"],["leaders","Party Leaders"],["archive","Archive"],["govChart","Gov Chart"],["budget","💰 Budget"],["reserve","⚜ Reserve"],["decree","📜 Decrees"],["links","🔗 Links"],["announce","📢 Announcement"],["lock","🔒 Submit Lock"],["grandfather","⚜ Grandfather"],["access","Access Control"]];
   const depOpts=[{v:"",l:"— Select member —"},...Object.entries(members||{}).map(([id,m])=>({v:id,l:m.name+" ("+m.seats+" seats)"}))];
 
   return (
@@ -2775,7 +2955,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
             {activeBudget&&!activeBudget.voided_at?(
               <div>
                 <BudgetStatusBanner activeBudget={activeBudget} cooldown={null}/>
-                <BudgetDisplay budget={activeBudget} orgChart={orgChart}/>
+                <BudgetDisplay budget={activeBudget} orgChart={orgChart} imperialReserve={imperialReserve}/>
               </div>
             ):(
               <BudgetStatusBanner activeBudget={activeBudget} cooldown={null}/>
@@ -2792,6 +2972,15 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
         <SubmitLockSection submitLock={submitLock} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
       )}
 
+      {section==="reserve"&&(
+        <ImperialReserveSection imperialReserve={imperialReserve} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
+      )}
+      {section==="decree"&&(
+        <ImperialDecreeSection onAction={onAction} notify={notify} setProcessing={setProcessing}/>
+      )}
+      {section==="links"&&(
+        <ImperialLinksSection imperialLinks={imperialLinks} onAction={onAction} notify={notify}/>
+      )}
       {section==="grandfather"&&(
         <GrandfatherSection bills={bills} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
       )}
@@ -2827,7 +3016,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
 }
 
 // ── Panel tab (role selector + login) ─────────────────────────────────────────
-function PanelTab({bills,members,bundesherren,officials,orgChart,session,announcement,activeBudget,submitLock,onAction,notify,setProcessing,onEmperorAuth}) {
+function PanelTab({bills,members,bundesherren,officials,orgChart,session,announcement,activeBudget,submitLock,imperialReserve,imperialLinks,onAction,notify,setProcessing,onEmperorAuth}) {
   const [role,setRole]=useState(null);
   const [authed,setAuthed]=useState(false);
   const [pw,setPw]=useState("");
@@ -2881,7 +3070,7 @@ function PanelTab({bills,members,bundesherren,officials,orgChart,session,announc
         <button onClick={()=>{setRole(null);setAuthed(false);if(onEmperorAuth)onEmperorAuth(false);}} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:2,padding:"3px 10px",fontFamily:"'Cinzel',serif",fontSize:9,color:C.textD,cursor:"pointer",letterSpacing:"0.1em"}}>← Back</button>
         <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:C.textDD,letterSpacing:"0.15em"}}>{role.icon} {role.label.toUpperCase()}</span>
       </div>
-      {role.id==="emperor"&&<EmperorPanelContent bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} announcement={announcement} activeBudget={activeBudget} submitLock={submitLock} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+      {role.id==="emperor"&&<EmperorPanelContent bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} announcement={announcement} activeBudget={activeBudget} submitLock={submitLock} imperialReserve={imperialReserve} imperialLinks={imperialLinks} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
       {role.id==="bt_president"&&<BTPanelContent bills={bills} members={members} bundesherren={bundesherren} session={session} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
       {role.id==="bh_president"&&<BHPanelContent bills={bills} members={members} bundesherren={bundesherren} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
     </div>
@@ -3592,7 +3781,7 @@ function LegislativeRecord({bills,members,bundesherren}) {
 }
 
 // ── Landing page ─────────────────────────────────────────────────────────────
-function LandingPage({bills,members,bundesherren,officials,orgChart,activeBudget,budgetCooldown,onAction}) {
+function LandingPage({bills,members,bundesherren,officials,orgChart,activeBudget,budgetCooldown,imperialReserve,onAction}) {
   const [open,setOpen]=useState({archive:false,govchart:false,howto:false});
   const toggle=k=>setOpen(o=>({...o,[k]:!o[k]}));
 
@@ -3636,7 +3825,7 @@ function LandingPage({bills,members,bundesherren,officials,orgChart,activeBudget
         <GovChartTab officials={officials} members={members} bundesherren={bundesherren} orgChart={orgChart}/>
       </Section>
       <Section id="budget" icon="💰" title="Imperial Budget" color="#c8a870">
-        <BudgetErrorBoundary><BudgetTab activeBudget={activeBudget} budgetCooldown={budgetCooldown} bills={bills} members={members} bundesherren={bundesherren} orgChart={orgChart} onSubmit={async(p)=>await onAction("submitBudget",p)} hideSubmit={true}/></BudgetErrorBoundary>
+        <BudgetErrorBoundary><BudgetTab activeBudget={activeBudget} budgetCooldown={budgetCooldown} bills={bills} members={members} bundesherren={bundesherren} orgChart={orgChart} imperialReserve={imperialReserve} onSubmit={async(p)=>await onAction("submitBudget",p)} hideSubmit={true}/></BudgetErrorBoundary>
       </Section>
       <Section id="howto" icon="📖" title="How It Works" color="#7ad47a">
         <HowToTab/>
@@ -3696,7 +3885,7 @@ function AnnouncementBanner({announcement,tab}) {
 
 
 // ── Budget Submit Section ────────────────────────────────────────────────────
-function BudgetSubmitSection({activeBudget,budgetCooldown,orgChart,onSubmitBudget}) {
+function BudgetSubmitSection({activeBudget,budgetCooldown,orgChart,onSubmitBudget,imperialReserve}) {
   const [done,setDone]=useState(false);
   const [mode,setMode]=useState(null); // null | "budget" | "supplementary"
   const now=Date.now();
@@ -3746,7 +3935,7 @@ function BudgetSubmitSection({activeBudget,budgetCooldown,orgChart,onSubmitBudge
           The current budget is still valid for {daysRemaining} more day{daysRemaining!==1?"s":""} but a new one may now be submitted. If ratified, it will immediately supersede the active budget.
         </div>
       )}
-      <BudgetForm orgChart={orgChart} isSupplementary={mode==="supplementary"}
+      <BudgetForm orgChart={orgChart} isSupplementary={mode==="supplementary"} imperialReserve={imperialReserve}
         onSubmit={async(data)=>{
           const ok=await onSubmitBudget({...data,budgetType:mode});
           if(ok)setDone(true);
@@ -3905,7 +4094,8 @@ function BudgetStatusBanner({activeBudget,cooldown}) {
 }
 
 // ── Budget Display ────────────────────────────────────────────────────────────
-function BudgetDisplay({budget,orgChart}) {
+function BudgetDisplay({budget,orgChart,imperialReserve}) {
+  budget={...budget,reserve:imperialReserve!=null?imperialReserve:budget.reserve};
   const [expanded,setExpanded]=useState({});
   const toggle=k=>setExpanded(p=>({...p,[k]:!p[k]}));
   if(!budget||!budget.data) return null;
@@ -3956,6 +4146,12 @@ function BudgetDisplay({budget,orgChart}) {
         <div style={{background:C.s2,border:"1px solid #4a6a9a33",borderLeft:"3px solid #5a88cc",borderRadius:"0 3px 3px 0",padding:"6px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
           <span style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",color:"#7aaaee",textTransform:"uppercase"}}>👥 Government Payroll</span>
           <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:"#7aaaee",fontWeight:700}}>{fmtCur(parseFloat(data.payroll)||0)}</span>
+        </div>
+      )}
+      {budget.reserve!=null&&(
+        <div style={{background:surplus>=0?"#0a1a14":"#1a0e08",border:`1px solid ${surplus>=0?"#3a7a5a33":"#8a5a3033"}`,borderLeft:`3px solid ${surplus>=0?"#4a9a7a":"#c08040"}`,borderRadius:"0 3px 3px 0",padding:"6px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",color:surplus>=0?"#5aaf8a":"#c08040",textTransform:"uppercase"}}>⚜ Imperial Reserve{surplus<0?" (drawing "+fmtCur(Math.abs(surplus))+" from reserve)":""}</span>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:surplus>=0?"#5aaf8a":"#c08040",fontWeight:700}}>{fmtCur(budget.reserve)}</span>
         </div>
       )}
 
@@ -4046,7 +4242,7 @@ function NumInp({value,onChange,placeholder}) {
   );
 }
 
-function BudgetForm({orgChart,onSubmit,onCancel,isSupplementary}) {
+function BudgetForm({orgChart,onSubmit,onCancel,isSupplementary,imperialReserve}) {
   const [title,setTitle]=useState("");
   const [submitter,setSubmitter]=useState("");
   const [notes,setNotes]=useState("");
@@ -4193,6 +4389,17 @@ function BudgetForm({orgChart,onSubmit,onCancel,isSupplementary}) {
         <BudgetRow label={surplus>=0?"Surplus":"Deficit"} color={surplus>=0?"#7ad47a":"#c09000"} value={Math.abs(surplus)}/>
       </div>
 
+      {imperialReserve>0&&(
+        <div style={{background:"#0a1a14",border:"1px solid #3a7a5a33",borderLeft:"3px solid #4a9a7a",borderRadius:"0 3px 3px 0",padding:"6px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",color:"#5aaf8a",textTransform:"uppercase"}}>⚜ Imperial Reserve</span>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:"#5aaf8a",fontWeight:700}}>{fmtCur(imperialReserve)}</span>
+        </div>
+      )}
+      {imperialReserve>0&&surplus<0&&(
+        <div style={{background:"#1a0e08",border:"1px solid #8a5a3033",borderLeft:"3px solid #c08040",borderRadius:"0 3px 3px 0",padding:"6px 12px",fontSize:12,color:"#c08040",fontStyle:"italic"}}>
+          ⚠ Deficit budget — {fmtCur(Math.abs(surplus))} will be drawn from the Imperial Reserve.
+        </div>
+      )}
       <div><FL>BUDGET NOTES (optional)</FL><TA value={notes} onChange={setNotes} placeholder="Fiscal policy notes, assumptions, priorities…" rows={3}/></div>
 
       {err&&<div style={{background:"#1a0808",border:`1px solid ${C.redL}44`,borderLeft:`3px solid ${C.redL}`,padding:"0.6rem 1rem",borderRadius:"0 3px 3px 0",fontSize:13,color:C.redL}}>{err}</div>}
@@ -4219,7 +4426,7 @@ function BudgetForm({orgChart,onSubmit,onCancel,isSupplementary}) {
 }
 
 // ── Budget Tab ────────────────────────────────────────────────────────────────
-function BudgetTab({activeBudget,budgetCooldown,bills,members,bundesherren,orgChart,onSubmit,hideSubmit}) {
+function BudgetTab({activeBudget,budgetCooldown,bills,members,bundesherren,orgChart,onSubmit,hideSubmit,imperialReserve}) {
   const [showForm,setShowForm]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
 
@@ -4267,7 +4474,7 @@ function BudgetTab({activeBudget,budgetCooldown,bills,members,bundesherren,orgCh
           {budgetActive&&activeBudget&&(
             <div style={{marginBottom:"1.5rem"}}>
               <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.2em",color:C.gold,marginBottom:"0.75rem"}}>CURRENT BUDGET — {activeBudget.title}</div>
-              <BudgetDisplay budget={activeBudget} orgChart={orgChart}/>
+              <BudgetDisplay budget={activeBudget} orgChart={orgChart} imperialReserve={imperialReserve}/>
             </div>
           )}
 
@@ -4287,6 +4494,40 @@ function BudgetTab({activeBudget,budgetCooldown,bills,members,bundesherren,orgCh
 }
 
 
+// ── Imperial Links Tab ──────────────────────────────────────────────────────
+function ImperialLinksTab({imperialLinks}) {
+  const links=imperialLinks||[];
+  return (
+    <div className="fu" style={{maxWidth:600,margin:"0 auto"}}>
+      <STitle>Imperial Link Directory</STitle>
+      {links.length===0?(
+        <div style={{textAlign:"center",padding:"3rem",color:C.textD,fontStyle:"italic",fontSize:14}}>
+          No imperial links have been configured yet.
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          {links.map((l,i)=>(
+            <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
+              style={{display:"flex",alignItems:"center",gap:14,background:C.s2,
+                       border:`1px solid ${C.gold}33`,borderLeft:`4px solid ${C.gold}`,
+                       borderRadius:"0 4px 4px 0",padding:"1rem 1.25rem",textDecoration:"none",
+                       transition:"all .15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=C.s1;e.currentTarget.style.borderColor=C.gold;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=C.s2;e.currentTarget.style.borderColor=C.gold+"33";}}>
+              <span style={{fontSize:22,flexShrink:0}}>🔗</span>
+              <div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:14,color:C.gold,fontWeight:700,marginBottom:3}}>{l.label}</div>
+                <div style={{fontSize:12,color:C.textDD,fontStyle:"italic"}}>{l.url}</div>
+              </div>
+              <span style={{marginLeft:"auto",fontFamily:"'Cinzel',serif",fontSize:9,color:C.textDD,letterSpacing:"0.1em",flexShrink:0}}>OPEN →</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
   const [tab,setTab]=useState("home");
@@ -4300,6 +4541,8 @@ function App() {
   const [activeBudget,setActiveBudget]=useState(null);
   const [budgetCooldown,setBudgetCooldown]=useState(null);
   const [submitLock,setSubmitLock]=useState(null);
+  const [imperialReserve,setImperialReserve]=useState(0);
+  const [imperialLinks,setImperialLinks]=useState([]);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState({msg:"",color:C.green});
   const [processing,setProcessing]=useState(null);
@@ -4317,7 +4560,8 @@ function App() {
       const g = (k) => { try { return raw[k] ? raw[k] : null; } catch{ return null; } };
       const m=g("bk_members"), bh=g("bk_bh"), off=g("bk_officials"),
             oc=g("bk_orgchart"), sess=g("bk_session"), ann=g("bk_announcement"),
-            ab=g("bk_active_budget"), bc=g("bk_budget_cooldown"), sl=g("bk_submit_lock");
+            ab=g("bk_active_budget"), bc=g("bk_budget_cooldown"), sl=g("bk_submit_lock"),
+            ir=g("bk_imperial_reserve"), il=g("bk_imperial_links");
       const billsRaw={}, logoRaw={};
       Object.entries(raw||{}).forEach(([k,v])=>{
         if(k.startsWith("bk_bill_")) billsRaw[k]=v;
@@ -4342,6 +4586,8 @@ function App() {
       setActiveBudget(ab||null);
       setBudgetCooldown(bc||null);
       setSubmitLock(sl||null);
+      setImperialReserve(ir||0);
+      setImperialLinks(il||[]);
       const bmap={};
       Object.values(billsRaw||{}).forEach(b=>{ if(b?.id) bmap[b.id]=b; });
       setBills(bmap); setLoading(false);
@@ -4621,7 +4867,7 @@ function App() {
         const validUntil=budgetValidUntil(ratifiedAt);
         const ab={id:bill.id,title:bill.title,submitter:bill.submitter,
           ratified_at:ratifiedAt,valid_until:validUntil,type:bill.type,
-          data:bill.budgetData||{}};
+          data:bill.budgetData||{},reserve:imperialReserve};
         setActiveBudget(ab); await sset("bk_active_budget",ab);
         const cd={until:budgetCooldownUntil(ratifiedAt),voided:false};
         setBudgetCooldown(cd); await sset("bk_budget_cooldown",cd);
@@ -4650,6 +4896,15 @@ function App() {
         await sdel("bk_bh_hash");
         notify("🏰 "+bill.nominee+" is now President of the Bundesherren. BH panel locked until Emperor sets new passphrase.",C.gold);
       }
+      // Dissolve Government
+      if(bill.type==="dissolve_government"){
+        const newOff={...(officials||{}),chancellor:"Vacant",ministers:{}};
+        Object.keys(newOff).forEach(k=>{ if(k.startsWith("vice")) delete newOff[k]; });
+        newOff.vice_chancellor="Vacant";
+        setOff(newOff); await sset("bk_officials",newOff);
+        setMembers({}); await sset("bk_members",{});
+        notify("🏚 Government dissolved — all members and ministers dismissed. Start an election.",C.redL);
+      }
       commitTx();
     }
     else if(type==="appointMinister"){
@@ -4673,6 +4928,27 @@ function App() {
       const next={...bills}; delete next[payload.billId];
       setBills(next);
       await sdel("bk_bill_"+payload.billId);
+    }
+    else if(type==="saveDecree"){
+      const id="bill_dec_"+uid();
+      const bill={id,title:payload.title,type:"decree",gdoc_url:payload.gdoc_url||"",
+        decree_text:payload.decree_text||"",decree_subtype:payload.decree_subtype||"decree",
+        origin:"emperor",submitter:"Emperor",nominee:"",portfolio:"",category:"",
+        status:"decree",created:Date.now(),grandfathered:false,
+        bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,
+        ratified_at:Date.now(),failed_at:null};
+      setBills(p=>({...p,[id]:bill}));
+      return await sset("bk_bill_"+id,bill);
+    }
+    else if(type==="saveImperialReserve"){
+      setImperialReserve(payload.amount||0);
+      await sset("bk_imperial_reserve",payload.amount||0);
+      notify("⚜ Imperial Reserve updated.",C.gold);
+    }
+    else if(type==="saveImperialLinks"){
+      setImperialLinks(payload.links||[]);
+      await sset("bk_imperial_links",payload.links||[]);
+      notify("🔗 Imperial links updated.",C.gold);
     }
     else if(type==="saveSubmitLock"){
       const lock=payload.lock;
@@ -4755,6 +5031,7 @@ function App() {
     {id:"bundesherren", label:"Bundesherren", icon:"🏰", badge:0},
     {id:"submit",       label:"Submit Bill",  icon:"✍",  badge:0},
     {id:"panel",        label:"Panel",        icon:"⚙",  badge:pendingCount+pendingBHCount+ratifyCount},
+    {id:"links",         label:"Imperial Links",icon:"🔗", badge:0},
   ];
 
   return (
@@ -4801,11 +5078,12 @@ function App() {
           </div>
         ):(
           <>
-            <div style={{display:tab==="home"?"block":"none"}}><LandingPage bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} activeBudget={activeBudget} budgetCooldown={budgetCooldown} onAction={onAction}/></div>
+            <div style={{display:tab==="home"?"block":"none"}}><LandingPage bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} activeBudget={activeBudget} budgetCooldown={budgetCooldown} imperialReserve={imperialReserve} onAction={onAction}/></div>
             <div style={{display:tab==="bundestag"?"block":"none"}}><BundestagTab members={members} officials={officials} bills={bills} bundesherren={bundesherren} session={session}/></div>
             <div style={{display:tab==="bundesherren"?"block":"none"}}><BundesherrenTab bundesherren={bundesherren} officials={officials} bills={bills} members={members}/></div>
-            <div style={{display:tab==="submit"?"block":"none"}}><SubmitTab onSubmit={async(p)=>await onAction("submitBill",p)} onSubmitBudget={async(p)=>await onAction("submitBudget",p)} activeBudget={activeBudget} budgetCooldown={budgetCooldown} orgChart={orgChart} submitLock={submitLock}/></div>
-            <div style={{display:tab==="panel"?"block":"none"}}><PanelTab bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} session={session} announcement={announcement} activeBudget={activeBudget} submitLock={submitLock} onAction={onAction} notify={notify} setProcessing={setProcessing} onEmperorAuth={()=>{}}/></div>
+            <div style={{display:tab==="submit"?"block":"none"}}><SubmitTab onSubmit={async(p)=>await onAction("submitBill",p)} onSubmitBudget={async(p)=>await onAction("submitBudget",p)} activeBudget={activeBudget} budgetCooldown={budgetCooldown} orgChart={orgChart} submitLock={submitLock} imperialReserve={imperialReserve}/></div>
+            <div style={{display:tab==="links"?"block":"none"}}><ImperialLinksTab imperialLinks={imperialLinks}/></div>
+            <div style={{display:tab==="panel"?"block":"none"}}><PanelTab bills={bills} members={members} bundesherren={bundesherren} officials={officials} orgChart={orgChart} session={session} announcement={announcement} activeBudget={activeBudget} submitLock={submitLock} imperialReserve={imperialReserve} imperialLinks={imperialLinks} onAction={onAction} notify={notify} setProcessing={setProcessing} onEmperorAuth={()=>{}}/></div>
           </>
         )}
       </div>
