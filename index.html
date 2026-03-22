@@ -623,6 +623,12 @@ function BillCard({bill,members,bundesherren}) {
               <div style={{fontSize:14,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{bill.motion_text}</div>
             </div>
           )}
+          {(bill.type==="budget"||bill.type==="budget_supplementary")&&bill.budgetData&&(
+            <div style={{marginBottom:"1rem"}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.18em",color:C.textDD,marginBottom:8}}>💰 BUDGET DETAIL</div>
+              <BudgetDisplay budget={{id:bill.id,title:bill.title,data:bill.budgetData,reserve:bill.budgetReserve??null}} orgChart={null} imperialReserve={bill.budgetReserve??null}/>
+            </div>
+          )}
           {bill.type!=="motion"&&bill.gdoc_url&&(
             <div style={{marginBottom:"1rem"}}>
               <a href={bill.gdoc_url} target="_blank" rel="noopener noreferrer"
@@ -4688,6 +4694,7 @@ function App() {
       const bill={id,title:payload.title,type:billType,gdoc_url:"",origin:"bt",
         submitter:payload.submitter,nominee:"",portfolio:"",category:"",
         budgetData:payload.data,
+        budgetReserve:imperialReserve??null,
         status:"pending",created:Date.now(),bt_votes:{},bh_votes:{},bt_result:null,bh_result:null,ratified_at:null,failed_at:null};
       setBills(p=>({...p,[id]:bill}));
       return await sset("bk_bill_"+id,bill);
