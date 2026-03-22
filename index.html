@@ -165,6 +165,18 @@ const GF_LINKS={
   "Substantive Titles Act 2022":"https://docs.google.com/document/d/1hSYP1q-NxH2DnE-W8m-NiSVew-rEIvNCjz63LzwjXPs/",
 };
 
+const PEERAGE_RANKS=[
+  {v:"crown_prince", l:"Crown Prince of Lech", color:"#cc2222", boxColor:"#3a0a0a", borderColor:"#8b1a1a", fleur:true, royal:true},
+  {v:"prince",       l:"Prince",               color:"#9a44cc", boxColor:"#2a0a3a", borderColor:"#6a1a8a", fleur:true, royal:true},
+  {v:"princess",     l:"Princess",             color:"#9a44cc", boxColor:"#2a0a3a", borderColor:"#6a1a8a", fleur:true, royal:true},
+  {v:"duke",         l:"Duke",                 color:"#C9A84C", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+  {v:"marquess",     l:"Marquess",             color:"#8899bb", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+  {v:"count",        l:"Count",                color:"#7aaa88", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+  {v:"viscount",     l:"Viscount",             color:"#aa8866", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+  {v:"baron",        l:"Baron",                color:"#8899aa", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+  {v:"baronet",      l:"Baronet",              color:"#9a9a9a", boxColor:null,       borderColor:null,      fleur:false,royal:false},
+];
+
 const BILL_TYPES = {
   regular:            { label:"Regular Bill",                    icon:"📜", skipBH:false },
   appoint_bt_pres:    { label:"Nominate President of Bundestag", icon:"🏛",  skipBH:true  },
@@ -650,7 +662,10 @@ function BillCard({bill,members,bundesherren}) {
                   const vc=vote==="for"?"#7ad47a":vote==="against"?C.redL:C.textDD;
                   return <div key={bid} style={{background:C.s3,border:`1px solid ${C.gold}33`,borderLeft:`2px solid ${C.gold}`,borderRadius:"0 2px 2px 0",padding:"3px 8px",display:"flex",alignItems:"center",gap:5}}>
                     <span style={{fontSize:10,color:C.gold}}>⚜</span>
-                    <span style={{fontSize:12,color:C.text}}>{bh.name}</span>
+                    <div>
+                      {bh.rank&&(()=>{const pr=PEERAGE_RANKS.find(r=>r.v===bh.rank);return pr?<span style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.12em",color:pr.color,display:"block"}}>{pr.l}</span>:null;})()}
+                      <span style={{fontSize:12,color:C.text}}>{bh.name}</span>
+                    </div>
                     <span style={{fontFamily:"'Cinzel',serif",fontSize:9,fontWeight:700,color:vc}}>{vote.toUpperCase()}</span>
                   </div>;
                 })}
@@ -1295,7 +1310,12 @@ function BundestagTab({members,officials,bills,bundesherren,session}) {
 }
 
 function BundesherrenTab({bundesherren,officials,bills,members}) {
-  const bhList=Object.values(bundesherren||{}).sort((a,b)=>a.name.localeCompare(b.name));
+  const RANK_ORDER=["crown_prince","prince","princess","duke","marquess","count","viscount","baron","baronet",""];
+  const bhList=Object.values(bundesherren||{}).sort((a,b)=>{
+    const ra=RANK_ORDER.indexOf(a.rank||""); const rb=RANK_ORDER.indexOf(b.rank||"");
+    const ai=ra===-1?RANK_ORDER.length:ra; const bi=rb===-1?RANK_ORDER.length:rb;
+    return ai!==bi?ai-bi:a.name.localeCompare(b.name);
+  });
   const active=Object.values(bills||{}).filter(b=>b.status==="bh_voting").sort((a,b)=>b.created-a.created);
   const awaitRat=Object.values(bills||{}).filter(b=>b.status==="ratification").sort((a,b)=>b.created-a.created);
   const total=bhList.length, thresh=total>0?Math.floor(total/2)+1:0;
@@ -1306,15 +1326,32 @@ function BundesherrenTab({bundesherren,officials,bills,members}) {
       <div style={{fontSize:14,color:C.textD,fontStyle:"italic",marginBottom:"0.85rem"}}>{total} member{total!==1?"s":""} · Majority: {thresh} of {total}</div>
       {bhList.length>0?(
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:"1.5rem"}}>
-          {bhList.map(bh=>(
-            <div key={bh.id} style={{background:C.s2,border:`1px solid ${C.gold}44`,borderLeft:`3px solid ${C.gold}`,borderRadius:"0 3px 3px 0",padding:"6px 14px",display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:16}}>⚜</span>
-              <div>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:C.text}}>{bh.name}</div>
-                {bh.title&&<div style={{fontSize:11,color:C.textD,fontStyle:"italic"}}>{bh.title}</div>}
+          {bhList.map(bh=>{
+            const pr=bh.rank?PEERAGE_RANKS.find(r=>r.v===bh.rank):null;
+            const boxBg=pr?.boxColor||C.s2;
+            const borderCol=pr?.borderColor||C.gold;
+            return(
+              <div key={bh.id} style={{background:boxBg,border:`1px solid ${borderCol}55`,
+                borderLeft:`3px solid ${borderCol}`,borderRadius:"0 3px 3px 0",padding:"6px 14px",
+                display:"flex",alignItems:"center",gap:8,position:"relative",overflow:"hidden"}}>
+                {pr?.fleur&&(
+                  <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"flex-end",
+                    paddingRight:8,opacity:0.07,fontSize:44,pointerEvents:"none",userSelect:"none",color:borderCol,
+                    letterSpacing:"-4px"}}>
+                    {"⚜⚜⚜"}
+                  </div>
+                )}
+                <span style={{fontSize:16,color:borderCol,flexShrink:0}}>⚜</span>
+                <div style={{position:"relative",zIndex:1}}>
+                  {pr&&<div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.18em",
+                    color:pr.color,marginBottom:2,textTransform:"uppercase"}}>{pr.l}</div>}
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,
+                    color:pr?.royal?pr.color:C.text,fontWeight:pr?.royal?700:400}}>{bh.name}</div>
+                  {bh.title&&<div style={{fontSize:11,color:C.textD,fontStyle:"italic"}}>{bh.title}</div>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ):<div style={{fontSize:15,color:C.textD,fontStyle:"italic",marginBottom:"1rem"}}>No Bundesherren registered.</div>}
       <Divider/>
@@ -2684,7 +2721,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
   const [pBH,setPBH]=useState(officials?.president_bh||"");
   const [csv,setCsv]=useState(""); const [csvErr,setCsvErr]=useState("");
   const [byDep,setByDep]=useState(""); const [byName,setByName]=useState(""); const [byParty,setByParty]=useState(PARTIES[0].id);
-  const [bhName,setBhName]=useState(""); const [bhTitle,setBhTitle]=useState("");
+  const [bhName,setBhName]=useState(""); const [bhTitle,setBhTitle]=useState(""); const [bhRank,setBhRank]=useState("");
   const [newBTPw,setNewBTPw]=useState(""); const [newBHPw,setNewBHPw]=useState(""); const [newEmpPw,setNewEmpPw]=useState("");
   const [minPortfolio,setMinPortfolio]=useState(MINISTER_PORTFOLIOS[0]);
   const [minName,setMinName]=useState("");
@@ -2803,26 +2840,46 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
           <STitle>Manage Bundesherren</STitle>
           {Object.values(bundesherren||{}).length>0?(
             <div style={{marginBottom:"1.25rem"}}>
-              {Object.entries(bundesherren||{}).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,bh])=>(
-                <div key={id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.s2,border:`1px solid ${C.gold}33`,borderLeft:`3px solid ${C.gold}`,borderRadius:"0 2px 2px 0",padding:"6px 12px",marginBottom:4}}>
-                  <div>
-                    <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:C.text}}>⚜ {bh.name}</span>
-                    {bh.title&&<span style={{fontSize:12,color:C.textD,marginLeft:8,fontStyle:"italic"}}>{bh.title}</span>}
+              {Object.entries(bundesherren||{}).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,bh])=>{
+                const pr=bh.rank?PEERAGE_RANKS.find(r=>r.v===bh.rank):null;
+                return(
+                  <div key={id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                    background:pr?.boxColor||C.s2,border:`1px solid ${pr?.borderColor||C.gold}33`,
+                    borderLeft:`3px solid ${pr?.borderColor||C.gold}`,borderRadius:"0 2px 2px 0",padding:"6px 12px",marginBottom:4,flexWrap:"wrap",gap:6}}>
+                    <div>
+                      {pr&&<div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",color:pr.color,marginBottom:2}}>{pr.l}</div>}
+                      <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:pr?.royal?pr.color:C.text}}>⚜ {bh.name}</span>
+                      {bh.title&&<span style={{fontSize:12,color:C.textD,marginLeft:8,fontStyle:"italic"}}>{bh.title}</span>}
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <select value={bh.rank||""} onChange={async(e)=>{
+                        await onAction("updateBHRank",{id,rank:e.target.value});
+                        notify(bh.name+" rank updated.",C.gold);
+                      }} style={{background:C.s1,border:`1px solid ${C.border}`,borderRadius:2,
+                        padding:"3px 8px",color:C.text,fontSize:12,fontFamily:"'Crimson Text',serif"}}>
+                        <option value="">— No rank —</option>
+                        {PEERAGE_RANKS.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}
+                      </select>
+                      <ArmBtn small label="Remove" confirmLabel="Remove?" onConfirm={async()=>{await onAction("removeBH",{id});notify(bh.name+" removed.",C.gold);}}/>
+                    </div>
                   </div>
-                  <ArmBtn small label="Remove" confirmLabel="Remove?" onConfirm={async()=>{await onAction("removeBH",{id});notify(bh.name+" removed.",C.gold);}}/>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ):<div style={{fontSize:14,color:C.textD,fontStyle:"italic",marginBottom:"1rem"}}>No Bundesherren yet.</div>}
           <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",maxWidth:400}}>
             <FL>ADD NEW BUNDESHERR</FL>
             <Inp value={bhName} onChange={setBhName} placeholder="Name"/>
-            <Inp value={bhTitle} onChange={setBhTitle} placeholder="Noble title / rank (optional)"/>
+            <Inp value={bhTitle} onChange={setBhTitle} placeholder="Position / noble title (optional)"/>
+            <div>
+              <FL>PEERAGE RANK (optional)</FL>
+              <DD value={bhRank} onChange={setBhRank} options={[{v:"",l:"— No rank —"},...PEERAGE_RANKS.map(r=>({v:r.v,l:r.l}))]}/>
+            </div>
             <Btn variant="gold" onClick={async()=>{
               if(!bhName.trim()) return;
               setProcessing("Adding Bundesherr…");
-              await onAction("addBH",{name:bhName.trim(),title:bhTitle.trim()});
-              setProcessing(null); notify(bhName+" added.",C.gold); setBhName(""); setBhTitle("");
+              await onAction("addBH",{name:bhName.trim(),title:bhTitle.trim(),rank:bhRank||""});
+              setProcessing(null); notify(bhName+" added.",C.gold); setBhName(""); setBhTitle(""); setBhRank("");
             }} disabled={!bhName.trim()}>+ Add Bundesherr</Btn>
           </div>
         </div>
@@ -4614,11 +4671,15 @@ function App() {
     }
     else if(type==="addBH"){
       const id="bh_"+uid();
-      const next={...bundesherren,[id]:{id,name:payload.name,title:payload.title}};
+      const next={...bundesherren,[id]:{id,name:payload.name,title:payload.title,rank:payload.rank||""}};
       setBH(next); await sset("bk_bh",next);
     }
     else if(type==="removeBH"){
       const next={...bundesherren}; delete next[payload.id];
+      setBH(next); await sset("bk_bh",next);
+    }
+    else if(type==="updateBHRank"){
+      const next={...bundesherren,[payload.id]:{...bundesherren[payload.id],rank:payload.rank}};
       setBH(next); await sset("bk_bh",next);
     }
     else if(type==="submitBudget"){
